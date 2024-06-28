@@ -1,0 +1,11 @@
+# test.tw
+
+if (navigate("https:google.com")) {
+	print("navigating succeeded")
+} else {
+	print("navigating failed")
+
+	return(false)
+}
+
+return(true)
