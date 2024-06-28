@@ -3,6 +3,7 @@ package taskwrappr
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -32,7 +33,8 @@ const (
 )
 
 const (
-	ActionCallPattern = `\w+\([^)]*\)`
+	ActionCallPattern =      `\w+\([^)]*\)`
+	ActionArgumentsPattern = `(\w+)\(([^)]*)\)`
 )
 
 type ScriptRunner struct {
@@ -124,9 +126,82 @@ func (s *ScriptRunner) AnalyzeLine(line string) Token {
 	return UndefinedToken
 }
 
+func ParseAction(line string) (string, []interface{}, error) {
+	// Find function call and arguments using regex
+	match := regexp.MustCompile(ActionArgumentsPattern).FindStringSubmatch(line)
+	if len(match) != 3 {
+		return "", nil, fmt.Errorf("invalid function call format")
+	}
+
+	actionName := match[1]
+	argString := match[2]
+
+	// Split arguments by commas
+	rawArgs := strings.Split(argString, ",")
+
+	// Trim spaces from each argument
+	for i := range rawArgs {
+		rawArgs[i] = strings.TrimSpace(rawArgs[i])
+	}
+
+	// Parse each argument into appropriate types
+	var parsedArgs []interface{}
+	for _, arg := range rawArgs {
+		if arg == "" {
+			continue
+		}
+
+		// Check if the argument is a string
+		if strings.HasPrefix(arg, `"`) && strings.HasSuffix(arg, `"`) {
+			parsedArgs = append(parsedArgs, strings.Trim(arg, `"`))
+			continue
+		}
+
+		// Try to parse as integer
+		if intValue, err := strconv.Atoi(arg); err == nil {
+			parsedArgs = append(parsedArgs, intValue)
+			continue
+		}
+
+		// Try to parse as float
+		if floatValue, err := strconv.ParseFloat(arg, 64); err == nil {
+			parsedArgs = append(parsedArgs, floatValue)
+			continue
+		}
+
+		// Try to parse as boolean
+		if boolValue, err := strconv.ParseBool(arg); err == nil {
+			parsedArgs = append(parsedArgs, boolValue)
+			continue
+		}
+
+		// If none of the above, treat as a string
+		parsedArgs = append(parsedArgs, arg)
+	}
+
+	return actionName, parsedArgs, nil
+}
+
+func (s *ScriptRunner) ExecuteActionLine(line string) error {
+	actionName, actionArgs, err := ParseAction(line)
+	if err != nil {
+		return err
+	}
+
+	if action, ok := s.Memory.Actions[actionName]; ok {
+		if _, err := action.Execute(actionArgs...); err != nil {
+			return fmt.Errorf("error executing action '%s': %v", actionName, err)
+		}
+	} else {
+		return fmt.Errorf("unknown action '%s'", actionName)
+	}
+
+	return nil
+}
+
 func (s *ScriptRunner) ExecuteLine(line string) error {
 	token := s.AnalyzeLine(line)
-	fmt.Printf("Token: %s", token)
+	fmt.Printf("Token: %s\n", token)
 
 	switch token {
 	case IfStatementToken:
@@ -138,9 +213,9 @@ func (s *ScriptRunner) ExecuteLine(line string) error {
 	case CodeBlockCloseToken:
 		// Execute code block close
 	case ActionToken:
-		// Execute action
+		return s.ExecuteActionLine(line)
 	case UndefinedToken:
-		// Execute line as a simple statement
+		return fmt.Errorf("unknown token in line: %s", line)
 	}
 
 	return nil

@@ -15,6 +15,10 @@ func main() {
 	memoryMap.Variables["someOtherVar"] = taskwrappr.NewVariable(true)
 
 	memoryMap.Actions["navigate"] = taskwrappr.NewAction(func(args ...interface{}) (interface{}, error) {
+		if len(args) < 1 {
+			return nil, fmt.Errorf("navigate action requires at least 1 argument")
+		}
+
 		url := args[0].(string)
 		log.Printf("Navigating to: %s\n", url)
 
@@ -65,5 +69,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Printf("Script execution finished with status: %v\n", success)
+	log.Printf("script execution finished with status: %v\n", success)
 }

@@ -1,7 +1,8 @@
 # test.tw
 
 if (navigate("https:google.com")) {
-	print("navigating succeeded")
+	print("navigating succeeded", -12.2, 122, "balls", true, false)
+	navigate()
 } else {
 	print("navigating failed")
 
