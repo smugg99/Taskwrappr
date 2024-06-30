@@ -8,55 +8,104 @@ import (
 )
 
 const (
-	NewLineSymbol        = "\n"
+	NewLineSymbol        = '\n'
 	StringSymbol         = '"'
-	CommentSymbol        = "#"
-	VariableOpenSymbol   = "${{"
-	VariableCloseSymbol  = "}}"
+	CommentSymbol        = '#'
 	CodeBlockOpenSymbol  = '{'
 	CodeBlockCloseSymbol = '}'
 	ActionOpenSymbol     = '('
 	ActionCloseSymbol    = ')'
 	IfStatementSymbol    = "if"
 	ElseStatementSymbol  = "else"
+	IgnoreTokenSymbol    = -2
+	UndefinedTokenSymbol = -1
 )
 
-type Token string
-
-const (
-	IfStatementToken    Token = "if"
-	ElseStatementToken  Token = "else"
-	ActionToken         Token = "()"
-	CodeBlockOpenToken  Token = "{"
-	CodeBlockCloseToken Token = "}"
-	UndefinedToken      Token = "undefined"
-)
+type Token int
 
 const (
-	ActionCallPattern =      `\w+\([^)]*\)`
-	ActionArgumentsPattern = `(\w+)\(([^)]*)\)`
+	IfStatementToken    Token = iota
+	ElseStatementToken
+	ActionToken
+	CodeBlockOpenToken
+	CodeBlockCloseToken
+	UndefinedToken
+	IgnoreToken
+	NoToken = UndefinedTokenSymbol
 )
+
+func (t Token) String() string {
+	switch t {
+	case IfStatementToken:
+		return "IfStatementToken"
+	case ElseStatementToken:
+		return "ElseStatementToken"
+	case ActionToken:
+		return "ActionToken"
+	case CodeBlockOpenToken:
+		return "CodeBlockOpenToken"
+	case CodeBlockCloseToken:
+		return "CodeBlockCloseToken"
+	case UndefinedToken:
+		return "UndefinedToken"
+	case NoToken:
+		return "NoToken"
+	case IgnoreToken:
+		return "IgnoreToken"
+	default:
+		return "UnknownToken"
+	}
+}
+
+const (
+	ActionCallPattern      = `\w+\([^()]*\)`
+	ActionArgumentsPattern = `(\w+)\(([^()]*)\)`
+	NestedActionPattern    = `(\w+)\((.*)\)`
+)
+
+var (
+	IllegalNames       = []string{IfStatementSymbol, ElseStatementSymbol}
+)
+
+type InterpreterFlags struct {
+	InIfBlock bool
+}
 
 type ScriptRunner struct {
 	Script *Script
 	Memory *MemoryMap
+	flags  *InterpreterFlags
 }
 
 func NewScriptRunner(script *Script, memory *MemoryMap) *ScriptRunner {
 	return &ScriptRunner{
 		Script: script,
 		Memory: memory,
+		flags:  &InterpreterFlags{},
 	}
 }
 
-func (s *ScriptRunner) NormalizeContent() {
+func (s *ScriptRunner) createActionCall(actionName string, args []interface{}) func() (interface{}, error) {
+	return func() (interface{}, error) {
+		if action, ok := s.Memory.Actions[actionName]; ok {
+			return action.Execute(s, args...)
+		}
+		return nil, fmt.Errorf("unknown action '%s'", actionName)
+	}
+}
+
+func (s *ScriptRunner) NormalizeContent() error {
 	var result strings.Builder
 	inQuotes := false
-	lines := strings.Split(s.Script.Content, NewLineSymbol)
+	lines := strings.Split(s.Script.Content, string(NewLineSymbol))
+
+	openCurlyCount := 0
+	openParenCount := 0
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
-		if !inQuotes && (strings.HasPrefix(trimmedLine, CommentSymbol) || trimmedLine == "") {
+
+		if !inQuotes && (strings.HasPrefix(trimmedLine, string(CommentSymbol)) || trimmedLine == "") {
 			continue
 		}
 
@@ -69,11 +118,35 @@ func (s *ScriptRunner) NormalizeContent() {
 				if inQuotes {
 					result.WriteByte(line[i])
 				}
-			case CodeBlockOpenSymbol, CodeBlockCloseSymbol:
+			case CodeBlockOpenSymbol:
 				if !inQuotes {
+					openCurlyCount++
 					result.WriteByte('\n')
 					result.WriteByte(line[i])
 					result.WriteByte('\n')
+				} else {
+					result.WriteByte(line[i])
+				}
+			case CodeBlockCloseSymbol:
+				if !inQuotes {
+					openCurlyCount--
+					result.WriteByte('\n')
+					result.WriteByte(line[i])
+					result.WriteByte('\n')
+				} else {
+					result.WriteByte(line[i])
+				}
+			case ActionOpenSymbol:
+				if !inQuotes {
+					openParenCount++
+					result.WriteByte(line[i])
+				} else {
+					result.WriteByte(line[i])
+				}
+			case ActionCloseSymbol:
+				if !inQuotes {
+					openParenCount--
+					result.WriteByte(line[i])
 				} else {
 					result.WriteByte(line[i])
 				}
@@ -81,13 +154,26 @@ func (s *ScriptRunner) NormalizeContent() {
 				result.WriteByte(line[i])
 			}
 		}
+
 		if result.Len() > 0 && result.String()[result.Len()-1] != '\n' {
 			result.WriteByte('\n')
 		}
 	}
 
+	if inQuotes {
+		return fmt.Errorf("unclosed string literal")
+	}
+
+	if openCurlyCount != 0 {
+		return fmt.Errorf("unbalanced curly braces")
+	}
+
+	if openParenCount != 0 {
+		return fmt.Errorf("unbalanced parentheses")
+	}
+
 	cleaned := strings.TrimSpace(result.String())
-	lines = strings.Split(cleaned, NewLineSymbol)
+	lines = strings.Split(cleaned, string(NewLineSymbol))
 	cleanedResult := strings.Builder{}
 
 	for _, line := range lines {
@@ -99,36 +185,38 @@ func (s *ScriptRunner) NormalizeContent() {
 	}
 
 	s.Script.CleanedContent = strings.TrimSpace(cleanedResult.String())
+
+	return nil
 }
 
-func (s *ScriptRunner) AnalyzeLine(line string) Token {
+
+func (s *ScriptRunner) AnalyzeLine(line string) (Token, Token) {
 	if strings.HasPrefix(line, IfStatementSymbol) {
-		return IfStatementToken
+		return IfStatementToken, CodeBlockOpenToken
 	}
 
 	if strings.HasPrefix(line, ElseStatementSymbol) {
-		return ElseStatementToken
+		return ElseStatementToken, CodeBlockOpenToken
 	}
 
 	if strings.HasPrefix(line, string(CodeBlockOpenSymbol)) {
-		return CodeBlockOpenToken
+		return CodeBlockOpenToken, NoToken
 	}
 
 	if strings.HasPrefix(line, string(CodeBlockCloseSymbol)) {
-		return CodeBlockCloseToken
+		return CodeBlockCloseToken, NoToken
 	}
 
 	actionCallPattern := regexp.MustCompile(ActionCallPattern)
 	if actionCallPattern.MatchString(line) {
-		return ActionToken
+		return ActionToken, NoToken
 	}
 
-	return UndefinedToken
+	return UndefinedToken, NoToken
 }
 
-func ParseAction(line string) (string, []interface{}, error) {
-	// Find function call and arguments using regex
-	match := regexp.MustCompile(ActionArgumentsPattern).FindStringSubmatch(line)
+func (s *ScriptRunner) ParseActionLine(line string) (string, []interface{}, error) {
+	match := regexp.MustCompile(NestedActionPattern).FindStringSubmatch(line)
 	if len(match) != 3 {
 		return "", nil, fmt.Errorf("invalid function call format")
 	}
@@ -136,24 +224,36 @@ func ParseAction(line string) (string, []interface{}, error) {
 	actionName := match[1]
 	argString := match[2]
 
-	// Split arguments by commas
 	rawArgs := strings.Split(argString, ",")
 
-	// Trim spaces from each argument
 	for i := range rawArgs {
 		rawArgs[i] = strings.TrimSpace(rawArgs[i])
 	}
 
-	// Parse each argument into appropriate types
 	var parsedArgs []interface{}
 	for _, arg := range rawArgs {
 		if arg == "" {
 			continue
 		}
 
+		// Check if the argument is a nested action call
+		if nestedMatch := regexp.MustCompile(NestedActionPattern).FindStringSubmatch(arg); len(nestedMatch) == 3 {
+			nestedActionName, nestedActionArgs, err := s.ParseActionLine(arg)
+			if err != nil {
+				return "", nil, fmt.Errorf("error parsing nested action '%s': %v", arg, err)
+			}
+			nestedAction := s.createActionCall(nestedActionName, nestedActionArgs)
+			result, err := nestedAction()
+			if err != nil {
+				return "", nil, err
+			}
+			parsedArgs = append(parsedArgs, result)
+			continue
+		}
+
 		// Check if the argument is a string
-		if strings.HasPrefix(arg, `"`) && strings.HasSuffix(arg, `"`) {
-			parsedArgs = append(parsedArgs, strings.Trim(arg, `"`))
+		if strings.HasPrefix(arg, string(StringSymbol)) && strings.HasSuffix(arg, string(StringSymbol)) {
+			parsedArgs = append(parsedArgs, strings.Trim(arg, string(StringSymbol)))
 			continue
 		}
 
@@ -175,61 +275,95 @@ func ParseAction(line string) (string, []interface{}, error) {
 			continue
 		}
 
-		// If none of the above, treat as a string
-		parsedArgs = append(parsedArgs, arg)
+		// Check if the argument is a variable
+		if variable, ok := s.Memory.Variables[arg]; ok {
+			parsedArgs = append(parsedArgs, variable.Value)
+			continue
+		}
+
+		return "", nil, fmt.Errorf("invalid argument type: %s", arg)
 	}
 
 	return actionName, parsedArgs, nil
 }
 
-func (s *ScriptRunner) ExecuteActionLine(line string) error {
-	actionName, actionArgs, err := ParseAction(line)
+func (s *ScriptRunner) ExecuteActionLine(line string) (interface{}, error) {
+	actionName, actionArgs, err := s.ParseActionLine(line)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if action, ok := s.Memory.Actions[actionName]; ok {
-		if _, err := action.Execute(actionArgs...); err != nil {
-			return fmt.Errorf("error executing action '%s': %v", actionName, err)
-		}
+	action := s.createActionCall(actionName, actionArgs)
+	if result, err := action(); err != nil {
+		return result, fmt.Errorf("error executing action '%s': %v", actionName, err)
 	} else {
-		return fmt.Errorf("unknown action '%s'", actionName)
+		return result, nil
 	}
-
-	return nil
 }
 
-func (s *ScriptRunner) ExecuteLine(line string) error {
-	token := s.AnalyzeLine(line)
-	fmt.Printf("Token: %s\n", token)
+func (s *ScriptRunner) ExecuteIfStatementLine(ifLine string) (bool, error) {
+	actionLine := strings.TrimPrefix(ifLine, IfStatementSymbol)
+	actionLine = strings.TrimSpace(actionLine)
+
+	fmt.Printf("If statement: %s\n", actionLine)
+	if result, err := s.ExecuteActionLine(actionLine); err != nil {
+		if resultBool, ok := result.(bool); ok {
+			return resultBool, err
+		} else {
+			return false, fmt.Errorf("if statement must return a boolean value")
+		}
+	}
+
+	return false, nil
+}
+
+func (s *ScriptRunner) ExecuteLine(line string, previousToken Token) (Token, error) {
+	token, expectedToken := s.AnalyzeLine(line)
+
+	fmt.Printf("token: %s, expected token: %s, previous token: %s \n", token, expectedToken, previousToken)
 
 	switch token {
 	case IfStatementToken:
-		// Execute if statement
+		result, err := s.ExecuteActionLine(line)
+		fmt.Println("if statement result:", result)
+
+		if resultBool, ok := result.(bool); ok {
+			s.flags.InIfBlock = resultBool
+		} else {
+			return token, fmt.Errorf("if statement must return a boolean value")
+		}
+
+		return token, err
 	case ElseStatementToken:
-		// Execute else statement
+		// Handled within ExecuteIfStatement
 	case CodeBlockOpenToken:
-		// Execute code block open
+		// Handled within ExecuteIfStatement
 	case CodeBlockCloseToken:
-		// Execute code block close
+		// Handled within ExecuteIfStatement
 	case ActionToken:
-		return s.ExecuteActionLine(line)
+		_, err := s.ExecuteActionLine(line)
+		return token, err
 	case UndefinedToken:
-		return fmt.Errorf("unknown token in line: %s", line)
+		return NoToken, fmt.Errorf("unknown token in line: %s", line)
 	}
 
-	return nil
+	return NoToken, nil
 }
 
 func (s *ScriptRunner) Run() (bool, error) {
-	s.NormalizeContent()
-	fmt.Println(s.Script.CleanedContent)
+	if err := s.NormalizeContent(); err != nil {
+		return false, err
+	}
 
-	lines := strings.Split(s.Script.CleanedContent, NewLineSymbol)
+	var previousToken Token = NoToken
+
+	lines := strings.Split(s.Script.CleanedContent, string(NewLineSymbol))
 	for i := 0; i < len(lines); i++ {
-		if err := s.ExecuteLine(lines[i]); err != nil {
+		nextToken, err := s.ExecuteLine(lines[i], previousToken)
+		if err != nil {
 			return false, err
 		}
+		previousToken = nextToken
 	}
 
 	return true, nil

@@ -7,8 +7,10 @@ type MemoryMap struct {
 }
 
 func NewMemoryMap() *MemoryMap {
+	actions, variables := GetInternals()
+
 	return &MemoryMap{
-		Actions:   make(map[string]*Action),
-		Variables: make(map[string]*Variable),
+		Actions:   actions,
+		Variables: variables,
 	}
 }
