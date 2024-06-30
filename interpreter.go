@@ -17,16 +17,13 @@ const (
 	ActionCloseSymbol    = ')'
 	IfStatementSymbol    = "if"
 	ElseStatementSymbol  = "else"
-	IgnoreTokenSymbol    = -2
 	UndefinedTokenSymbol = -1
 )
 
 type Token int
 
 const (
-	IfStatementToken    Token = iota
-	ElseStatementToken
-	ActionToken
+	ActionToken         Token = iota
 	CodeBlockOpenToken
 	CodeBlockCloseToken
 	UndefinedToken
@@ -36,10 +33,6 @@ const (
 
 func (t Token) String() string {
 	switch t {
-	case IfStatementToken:
-		return "IfStatementToken"
-	case ElseStatementToken:
-		return "ElseStatementToken"
 	case ActionToken:
 		return "ActionToken"
 	case CodeBlockOpenToken:
@@ -64,11 +57,13 @@ const (
 )
 
 var (
-	IllegalNames       = []string{IfStatementSymbol, ElseStatementSymbol}
+	IllegalNames = []string{IfStatementSymbol, ElseStatementSymbol}
 )
 
 type InterpreterFlags struct {
-	InIfBlock bool
+	LastActionReturned bool
+	LastActionSuccess  bool
+	Depth              uint
 }
 
 type ScriptRunner struct {
@@ -189,16 +184,7 @@ func (s *ScriptRunner) NormalizeContent() error {
 	return nil
 }
 
-
 func (s *ScriptRunner) AnalyzeLine(line string) (Token, Token) {
-	if strings.HasPrefix(line, IfStatementSymbol) {
-		return IfStatementToken, CodeBlockOpenToken
-	}
-
-	if strings.HasPrefix(line, ElseStatementSymbol) {
-		return ElseStatementToken, CodeBlockOpenToken
-	}
-
 	if strings.HasPrefix(line, string(CodeBlockOpenSymbol)) {
 		return CodeBlockOpenToken, NoToken
 	}
@@ -301,53 +287,65 @@ func (s *ScriptRunner) ExecuteActionLine(line string) (interface{}, error) {
 	}
 }
 
-func (s *ScriptRunner) ExecuteIfStatementLine(ifLine string) (bool, error) {
-	actionLine := strings.TrimPrefix(ifLine, IfStatementSymbol)
-	actionLine = strings.TrimSpace(actionLine)
-
-	fmt.Printf("If statement: %s\n", actionLine)
-	if result, err := s.ExecuteActionLine(actionLine); err != nil {
-		if resultBool, ok := result.(bool); ok {
-			return resultBool, err
-		} else {
-			return false, fmt.Errorf("if statement must return a boolean value")
-		}
-	}
-
-	return false, nil
-}
-
 func (s *ScriptRunner) ExecuteLine(line string, previousToken Token) (Token, error) {
-	token, expectedToken := s.AnalyzeLine(line)
-
-	fmt.Printf("token: %s, expected token: %s, previous token: %s \n", token, expectedToken, previousToken)
+	token, _ := s.AnalyzeLine(line)
+	// fmt.Printf("%s : %s --> %s, %d / %d\n", line, previousToken, token, s.flags.Depth, s.flags.MaxDepth)
 
 	switch token {
-	case IfStatementToken:
-		result, err := s.ExecuteActionLine(line)
-		fmt.Println("if statement result:", result)
-
-		if resultBool, ok := result.(bool); ok {
-			s.flags.InIfBlock = resultBool
+	case CodeBlockOpenToken:
+		if previousToken == ActionToken && s.flags.LastActionReturned {
+			if s.flags.LastActionSuccess {
+				s.flags.Depth++
+			} else {
+				return IgnoreToken, nil
+			}
 		} else {
-			return token, fmt.Errorf("if statement must return a boolean value")
+			return IgnoreToken, nil
+		}
+		
+		return token, nil
+	case CodeBlockCloseToken:
+		s.flags.Depth--
+		return token, nil
+	case ActionToken:
+		result, err := s.ExecuteActionLine(line)
+
+		if boolResult, ok := result.(bool); ok {
+			s.flags.LastActionReturned = true
+			s.flags.LastActionSuccess = boolResult
+		} else {
+			s.flags.LastActionReturned = false
 		}
 
-		return token, err
-	case ElseStatementToken:
-		// Handled within ExecuteIfStatement
-	case CodeBlockOpenToken:
-		// Handled within ExecuteIfStatement
-	case CodeBlockCloseToken:
-		// Handled within ExecuteIfStatement
-	case ActionToken:
-		_, err := s.ExecuteActionLine(line)
 		return token, err
 	case UndefinedToken:
 		return NoToken, fmt.Errorf("unknown token in line: %s", line)
 	}
 
 	return NoToken, nil
+}
+
+func (s *ScriptRunner) JumpToCodeBlock(lines []string, startIndex int, forward bool) (int, error) {
+	nestingLevel := 0
+	step := 1
+	if !forward {
+		step = -1
+	}
+
+	for i := startIndex; i >= 0 && i < len(lines); i += step {
+		token, _ := s.AnalyzeLine(lines[i])
+		switch token {
+		case CodeBlockOpenToken:
+			nestingLevel++
+		case CodeBlockCloseToken:
+			nestingLevel--
+			if nestingLevel == 0 {
+				return i, nil
+			}
+		}
+	}
+
+	return -1, fmt.Errorf("matching code block not found")
 }
 
 func (s *ScriptRunner) Run() (bool, error) {
@@ -359,11 +357,22 @@ func (s *ScriptRunner) Run() (bool, error) {
 
 	lines := strings.Split(s.Script.CleanedContent, string(NewLineSymbol))
 	for i := 0; i < len(lines); i++ {
-		nextToken, err := s.ExecuteLine(lines[i], previousToken)
+		token, err := s.ExecuteLine(lines[i], previousToken)
 		if err != nil {
 			return false, err
 		}
-		previousToken = nextToken
+
+		if token == IgnoreToken {
+			var jumpIndex int
+			jumpIndex, err = s.JumpToCodeBlock(lines, i, true)
+			if err != nil {
+				return false, err
+			}
+			i = jumpIndex
+			previousToken = CodeBlockCloseToken
+		} else {
+			previousToken = token
+		}
 	}
 
 	return true, nil

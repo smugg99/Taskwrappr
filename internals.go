@@ -33,7 +33,6 @@ func GetInternals() (map[string]*Action, map[string]*Variable) {
 	})
 
 	actions["if"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
-		fmt.Println(args...)
 		if len(args) == 0 {
 			return false, fmt.Errorf("if function requires at least one argument")
 		}
@@ -68,7 +67,7 @@ func GetInternals() (map[string]*Action, map[string]*Variable) {
 	})
 
 	actions["else"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
-		return nil, nil
+		return !s.flags.LastActionSuccess, nil
 	})
 
 	return actions, variables

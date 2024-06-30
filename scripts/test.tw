@@ -2,13 +2,27 @@
 
 # print("navigating", -12.2, 122, "balls", true, false, someVar, someOtherVar)
 
-navigate("deez")
-
-if(print(true))
+if(false)
 {
-	navigate("amogus")
+	print("true")
+	if(false)
+	{
+		print("true true")
+	}
+	else()
+	{
+		print("true false")
+	}
 }
 else()
 {
-	navigate("sussy bbaka uwu")
+	print("false")
+	if(true)
+	{
+		print("false true")
+	}
+	else()
+	{
+		print("false false")
+	}
 }
