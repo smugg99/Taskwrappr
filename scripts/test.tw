@@ -1,28 +1,35 @@
 # test.tw
 
-# print("navigating", -12.2, 122, "balls", true, false, someVar, someOtherVar)
+# here is a comment
+# as you can see, comments start with a hash
+# and continue until the end of the line
+# they are ignored by the interpreter
 
-if(false)
+print(print(print(15.2, 12, "hello world", true, false, false)), 44, -2137)
+
+if(true)
 {
-	print("true")
-	if(false)
+	if(true)
 	{
-		print("true true")
+		print("some other thing")
 	}
 	else()
 	{
-		print("true false")
+		print("some other thing else")
 	}
 }
 else()
 {
-	print("false")
-	if(true)
+	print("else")
+	if(false)
 	{
-		print("false true")
+		print("always false")
 	}
 	else()
 	{
-		print("false false")
+		print("always true")
+		if (true) {
+			print("also true")
+		}
 	}
 }
