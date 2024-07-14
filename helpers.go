@@ -71,6 +71,10 @@ func parseNonActionArg(argString string) (interface{}, error) {
 func (s *Script) runBlock(b *Block) error {
 	s.CurrentBlock = b
 	for _, action := range b.Actions {
+		if err := action.Validate(s); err != nil {
+            return err
+        }
+
 		result, err := action.Execute(s)
 		if err != nil {
 			return err
@@ -84,9 +88,6 @@ func (s *Script) runBlock(b *Block) error {
 						return err
 					}
 				}
-				// else {
-					
-				// }
 			}
 		}
 	}
@@ -109,7 +110,7 @@ func (s *Script) parseActionLine(line string) (*Action, error) {
 		return nil, fmt.Errorf("undefined action: %s", actionName)
 	}
 
-	action := NewAction(actionFound.ExecuteFunc)
+	action := NewAction(actionFound.ExecuteFunc, actionFound.ValidateFunc)
 
 	var parsedArgs []interface{}
 	parseArg := func(arg string) (interface{}, error) {

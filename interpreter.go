@@ -57,7 +57,7 @@ type Script struct {
 	Content        string
 	CleanedContent string
 	Memory 		   *MemoryMap
-	Block		   *Block
+	MainBlock	   *Block
 	CurrentBlock   *Block
 }
 
@@ -85,9 +85,9 @@ func (s *Script) Run() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	s.Block = parsedContent
+	s.MainBlock = parsedContent
 	
-	if err := s.runBlock(s.Block); err != nil {
+	if err := s.runBlock(s.MainBlock); err != nil {
 		return false, err
 	}
 

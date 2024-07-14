@@ -10,18 +10,36 @@
 #	print("hello world")
 #}
 
-#print(print(print(15.2, 12, "hello world", true, false, false)), 44, -2137)
+print(print(print(15.2, 12, "hello world", true, false, false)), 44, -2137)
+
+print("start")
+
+if(xor(true, false, and(true, false, true)))
+{
+	print("xor true")
+}
+else()
+{
+	print("xor false")
+}
 
 if(true)
 {
 	print("true")
-	if(false)
+	if(true)
 	{
-		print("some other thing")
-	}
-	else()
-	{
-		print("some other thing else")
+		print("nested true")
+		if (false)
+		{
+			print("nested false")
+		}
+
+		if(true)
+		else()
+		{
+			print("nested elses")
+			else()
+		}
 	}
 }
 else()

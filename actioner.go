@@ -7,9 +7,10 @@ type Block struct {
 }
 
 type Action struct {
-    ExecuteFunc func(s *Script, args ...interface{}) (interface{}, error)
-    Arguments   []interface{}
-    Block       *Block
+    ExecuteFunc  func(s *Script, args ...interface{}) (interface{}, error)
+    Arguments    []interface{}
+    Block        *Block
+    ValidateFunc func(s *Script, a *Action) error
 }
 
 func NewBlock() *Block {
@@ -47,8 +48,17 @@ func (a *Action) Execute(s *Script) (interface{}, error) {
 	return a.ExecuteFunc(s, processedArgs...)
 }
 
-func NewAction(executeFunc func(s *Script, args ...interface{}) (interface{}, error)) *Action {
+func (a *Action) Validate(s *Script) (error) {
+    if a.ValidateFunc == nil {
+        return nil
+    }
+
+    return a.ValidateFunc(s, a)
+}
+
+func NewAction(executeFunc func(s *Script, args ...interface{}) (interface{}, error), validateFunc func(s *Script, a *Action) error) *Action {
     return &Action{
-        ExecuteFunc: executeFunc,
+        ExecuteFunc:  executeFunc,
+        ValidateFunc: validateFunc,
     }
 }

@@ -23,7 +23,7 @@ func main() {
 		fmt.Printf("Navigating to: %s\n", url)
 
 		return url, nil
-	})
+	}, nil)
 
 	memoryMap.Actions["externalfunction"] = taskwrappr.NewAction(func(s *taskwrappr.Script, args ...interface{}) (interface{}, error) {
 		if len(args) < 1 {
@@ -31,7 +31,7 @@ func main() {
 		}
 
 		return args[0], nil
-	})
+	}, nil)
 
 	script, err := taskwrappr.NewScript("../scripts/test.tw", memoryMap)
 	if err != nil {
