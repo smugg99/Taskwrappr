@@ -6,17 +6,16 @@ import (
 	"time"
 )
 
-func GetInternals() (map[string]*Action, map[string]*Variable) {
+func GetInternals() (*MemoryMap) {
 	actions := make(map[string]*Action)
 	variables := make(map[string]*Variable)
 
-	actions["print"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
+	actions["print"] = NewAction(func(s *Script, args ...interface{}) (interface{}, error) {
 		fmt.Println(args...)
-
 		return args, nil
 	})
 
-	actions["wait"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
+	actions["wait"] = NewAction(func(s *Script, args ...interface{}) (interface{}, error) {
 		if len(args) < 1 {
 			return nil, fmt.Errorf("wait action requires at least 1 argument")
 		}
@@ -28,11 +27,10 @@ func GetInternals() (map[string]*Action, map[string]*Variable) {
 		}
 
 		time.Sleep(duration)
-
 		return nil, nil
 	})
 
-	actions["if"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
+	actions["if"] = NewAction(func(s *Script, args ...interface{}) (interface{}, error) {
 		if len(args) == 0 {
 			return false, fmt.Errorf("if function requires exactly one argument")
 		}
@@ -51,11 +49,11 @@ func GetInternals() (map[string]*Action, map[string]*Variable) {
 		}
 	})
 
-	actions["else"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
-		return !s.flags.LastActionSuccess, nil
+	actions["else"] = NewAction(func(s *Script, args ...interface{}) (interface{}, error) {
+		return false, nil
 	})
 
-	actions["and"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
+	actions["and"] = NewAction(func(s *Script, args ...interface{}) (interface{}, error) {
 		if len(args) == 0 {
 			return false, fmt.Errorf("and function requires at least one argument")
 		}
@@ -71,7 +69,7 @@ func GetInternals() (map[string]*Action, map[string]*Variable) {
 		return true, nil
 	})
 
-	actions["or"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
+	actions["or"] = NewAction(func(s *Script, args ...interface{}) (interface{}, error) {
 		if len(args) == 0 {
 			return false, fmt.Errorf("or function requires at least one argument")
 		}
@@ -87,7 +85,7 @@ func GetInternals() (map[string]*Action, map[string]*Variable) {
 		return false, nil
 	})
 
-	actions["not"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
+	actions["not"] = NewAction(func(s *Script, args ...interface{}) (interface{}, error) {
 		if len(args) != 1 {
 			return false, fmt.Errorf("not function requires exactly one argument")
 		}
@@ -97,7 +95,7 @@ func GetInternals() (map[string]*Action, map[string]*Variable) {
 		return false, fmt.Errorf("not function only supports a boolean argument")
 	})
 
-	actions["xor"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
+	actions["xor"] = NewAction(func(s *Script, args ...interface{}) (interface{}, error) {
 		if len(args) < 2 {
 			return false, fmt.Errorf("xor function requires at least two arguments")
 		}
@@ -114,7 +112,7 @@ func GetInternals() (map[string]*Action, map[string]*Variable) {
 		return countTrue%2 == 1, nil
 	})
 
-	actions["nand"] = NewAction(func(s *ScriptRunner, args ...interface{}) (interface{}, error) {
+	actions["nand"] = NewAction(func(s *Script, args ...interface{}) (interface{}, error) {
 		if len(args) == 0 {
 			return false, fmt.Errorf("nand function requires at least one argument")
 		}
@@ -130,5 +128,8 @@ func GetInternals() (map[string]*Action, map[string]*Variable) {
 		return false, nil
 	})
 
-	return actions, variables
+	return &MemoryMap{
+		Actions:   actions,
+		Variables: variables,
+	}
 }
