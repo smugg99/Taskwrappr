@@ -25,7 +25,7 @@ const (
 	CodeBlockCloseToken
 	UndefinedToken
 	IgnoreToken
-	NoToken = UndefinedTokenSymbol
+	NoToken Token = UndefinedTokenSymbol
 )
 
 func (t Token) String() string {
@@ -58,22 +58,23 @@ type Script struct {
 	CleanedContent string
 	Memory 		   *MemoryMap
 	Block		   *Block
+	CurrentBlock   *Block
 }
 
 func NewScript(filePath string, memory *MemoryMap) (*Script, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Script{
 		Path:           filePath,
-		Content:        string(content),
 		Memory:         memory,
 	}, nil
 }
 
 func (s *Script) Run() (bool, error) {
+	content, err := os.ReadFile(s.Path)
+	if err != nil {
+		return false, err
+	}
+	s.Content = string(content)
+
 	cleanedContent, err := s.normalizeContent()
     if err != nil {
         return false, err

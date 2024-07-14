@@ -5,31 +5,40 @@
 # and continue until the end of the line
 # they are ignored by the interpreter
 
-print(print(print(15.2, 12, "hello world", true, false, false)), 44, -2137)
-
-# if(false)
-# {
-#	if(true)
-#	{
-#		print("some other thing")
-#	}
-#	else()
-#	{
-#		print("some other thing else")
-#	}
-#}
-#else()
+#if(true)
 #{
-#	print("elses")
-#	if(false)
-#	{
-#		print("always false")
-#	}
-#	else()
-#	{
-#		print("always true")
-#		if (true) {
-#			print("also true")
-#		}
-#	}
+#	print("hello world")
 #}
+
+#print(print(print(15.2, 12, "hello world", true, false, false)), 44, -2137)
+
+if(true)
+{
+	print("true")
+	if(false)
+	{
+		print("some other thing")
+	}
+	else()
+	{
+		print("some other thing else")
+	}
+}
+else()
+{
+	print("elses")
+	print("more elses")
+	if(false)
+	{
+		print("always false")
+	}
+	else()
+	{
+		print("always true")
+		if (true) {
+			print("also true")
+		}
+	}
+}
+
+print("done")

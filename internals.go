@@ -50,6 +50,12 @@ func GetInternals() (*MemoryMap) {
 	})
 
 	actions["else"] = NewAction(func(s *Script, args ...interface{}) (interface{}, error) {
+		if s.CurrentBlock != nil && s.CurrentBlock.LastResult != nil {
+			if lastResult, ok := s.CurrentBlock.LastResult.(bool); ok {
+				return !lastResult, nil
+			}
+		}
+
 		return false, nil
 	})
 

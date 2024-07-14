@@ -69,21 +69,126 @@ func parseNonActionArg(argString string) (interface{}, error) {
 }
 
 func (s *Script) runBlock(b *Block) error {
+	s.CurrentBlock = b
 	for _, action := range b.Actions {
-		
-		_, err := action.Execute(s)
+		result, err := action.Execute(s)
 		if err != nil {
 			return err
 		}
+		b.LastResult = result
 
 		if action.Block != nil {
-			if err := s.runBlock(action.Block); err != nil {
-				return err
+			if resultBool, ok := result.(bool); ok {
+				if resultBool {
+					if err := s.runBlock(action.Block); err != nil {
+						return err
+					}
+				}
+				// else {
+					
+				// }
 			}
 		}
 	}
 
 	return nil
+}
+
+// TODO: Add support for non-global memory map
+func (s *Script) parseActionLine(line string) (*Action, error) {
+	match := regexp.MustCompile(ActionArgumentsPattern).FindStringSubmatch(line)
+    if len(match) != 3 {
+        return nil, fmt.Errorf("invalid function call format: %s", line)
+    }
+
+    actionName := match[1]
+    argString := match[2]
+
+	actionFound, ok := s.Memory.Actions[actionName];
+	if !ok {
+		return nil, fmt.Errorf("undefined action: %s", actionName)
+	}
+
+	action := NewAction(actionFound.ExecuteFunc)
+
+	var parsedArgs []interface{}
+	parseArg := func(arg string) (interface{}, error) {
+        if nestedMatch := regexp.MustCompile(ActionArgumentsPattern).FindStringSubmatch(arg); len(nestedMatch) == 3 {
+			nestedAction, err := s.parseActionLine(nestedMatch[0])
+            if err != nil {
+                return nil, fmt.Errorf("error parsing nested action '%s': %v", arg, err)
+            }
+
+            return nestedAction, nil
+        } else {
+            return parseNonActionArg(arg)
+        }
+    }
+
+	rawArgs := splitTopLevelArgs(argString)
+    for _, arg := range rawArgs {
+        arg = strings.TrimSpace(arg)
+        if arg == "" {
+            continue
+        }
+
+        parsedArg, err := parseArg(arg)
+        if err != nil {
+            return nil, err
+        }
+        parsedArgs = append(parsedArgs, parsedArg)
+    }
+
+	action.Arguments = parsedArgs
+
+    return action, nil
+}
+
+func (s *Script) parseContent() (*Block, error) {
+	lines := strings.Split(s.CleanedContent, string(NewLineSymbol))
+
+	blockStack := []*Block{}
+	currentBlock := NewBlock()
+
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		token, err := analyzeLine(line)
+		if err != nil {
+			return nil, fmt.Errorf("error analyzing line %d: %v", i+1, err)
+		}
+
+		switch token {
+		case ActionToken:
+			action, err := s.parseActionLine(line)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing action on line %d: %v", i+1, err)
+			}
+			currentBlock.Actions = append(currentBlock.Actions, action)
+		case CodeBlockOpenToken:
+			newBlock := NewBlock()
+			blockStack = append(blockStack, currentBlock)
+			currentBlock = newBlock
+		case CodeBlockCloseToken:
+			if len(blockStack) == 0 {
+				return nil, fmt.Errorf("unmatched closing brace on line %d", i+1)
+			}
+			completedBlock := currentBlock
+			currentBlock = blockStack[len(blockStack)-1]
+			blockStack = blockStack[:len(blockStack)-1]
+			if len(currentBlock.Actions) > 0 {
+				lastAction := currentBlock.Actions[len(currentBlock.Actions)-1]
+				lastAction.Block = completedBlock
+			} else {
+				return nil, fmt.Errorf("code block without preceding action on line %d", i+1)
+			}
+		}
+	}
+
+	if len(blockStack) > 0 {
+		return nil, fmt.Errorf("unmatched opening brace")
+	}
+
+	return currentBlock, nil
 }
 
 func (s *Script) normalizeContent() (string, error) {
@@ -176,86 +281,4 @@ func (s *Script) normalizeContent() (string, error) {
 	}
 
 	return strings.TrimSpace(cleanedResult.String()), nil
-}
-
-// TODO: Add support for non-global memory map
-func (s *Script) parseActionLine(line string) (*Action, error) {
-	match := regexp.MustCompile(ActionArgumentsPattern).FindStringSubmatch(line)
-    if len(match) != 3 {
-        return nil, fmt.Errorf("invalid function call format: %s", line)
-    }
-
-    actionName := match[1]
-    argString := match[2]
-
-	actionFound, ok := s.Memory.Actions[actionName];
-	if !ok {
-		return nil, fmt.Errorf("undefined action: %s", actionName)
-	}
-
-	action := NewAction(actionFound.ExecuteFunc)
-
-	var parsedArgs []interface{}
-	parseArg := func(arg string) (interface{}, error) {
-        if nestedMatch := regexp.MustCompile(ActionArgumentsPattern).FindStringSubmatch(arg); len(nestedMatch) == 3 {
-			nestedAction, err := s.parseActionLine(nestedMatch[0])
-            if err != nil {
-                return nil, fmt.Errorf("error parsing nested action '%s': %v", arg, err)
-            }
-
-            return nestedAction, nil
-        } else {
-            return parseNonActionArg(arg)
-        }
-    }
-
-	rawArgs := splitTopLevelArgs(argString)
-    for _, arg := range rawArgs {
-        arg = strings.TrimSpace(arg)
-        if arg == "" {
-            continue
-        }
-
-        parsedArg, err := parseArg(arg)
-        if err != nil {
-            return nil, err
-        }
-        parsedArgs = append(parsedArgs, parsedArg)
-    }
-
-	action.Arguments = parsedArgs
-
-    return action, nil
-}
-
-func (s *Script) parseContent() (*Block, error) {
-	lines := strings.Split(s.CleanedContent, string(NewLineSymbol))
-
-	actions := []*Action{}
-	memory := NewMemoryMap()
-
-	for i := 0; i < len(lines); i++ {
-		line := lines[i]
-		token, err := analyzeLine(line)
-		if err != nil {
-			return nil, fmt.Errorf("error analyzing line %d: %v", i+1, err)
-		}
-
-		switch token {
-		case ActionToken:
-			action, err := s.parseActionLine(line)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing action on line %d: %v", i+1, err)
-			}
-
-			actions = append(actions, action)
-		case CodeBlockOpenToken:
-		case CodeBlockCloseToken:
-		}
-	}
-
-	return &Block{
-		Actions: actions,
-		Memory:  memory,
-	}, nil
 }
