@@ -23,3 +23,4 @@ go.work.sum
 core/validator/commander.go
 _interpreter.go
 interpreter copy.go
+expressioner.go

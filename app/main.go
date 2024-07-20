@@ -11,8 +11,8 @@ import (
 func main() {
 	memoryMap := taskwrappr.GetInternals()
 
-	memoryMap.Variables["someVar"] = taskwrappr.NewVariable("dupa")
-	memoryMap.Variables["someOtherVar"] = taskwrappr.NewVariable(true)
+	memoryMap.Variables["someVar"] = taskwrappr.NewVariable("dupa", taskwrappr.StringType)
+	memoryMap.Variables["someOtherVar"] = taskwrappr.NewVariable(true, taskwrappr.BooleanType)
 
 	memoryMap.Actions["navigate"] = taskwrappr.NewAction(func(s *taskwrappr.Script, args ...interface{}) (interface{}, error) {
 		if len(args) < 1 {

@@ -2,55 +2,83 @@
 package taskwrappr
 
 import (
+	"fmt"
 	"os"
+	"regexp"
 )
+
+type TokenType    int
 
 const (
 	NewLineSymbol        = '\n'
 	StringSymbol         = '"'
+	SpaceSymbol          = ' '
+	ControlSymbol		 = '\t'
+	EscapeSymbol		 = '\\'
 	CommentSymbol        = '#'
 	CodeBlockOpenSymbol  = '{'
 	CodeBlockCloseSymbol = '}'
-	ActionOpenSymbol     = '('
-	ActionCloseSymbol    = ')'
-	ActionArgumentDelim  = ','
-	UndefinedTokenSymbol = -1
+	AssignmentSymbol     = '='
+	InvalidTokenSymbol   = -1
 )
 
-type Token int
+const (
+	ParenOpenSymbol      = '('
+	ParenCloseSymbol     = ')'
+	DelimiterSymbol      = ','
+	DecimalSymbol        = '.'
+	AdditionSymbol       = '+'
+	SubtractionSymbol    = '-'
+	MultiplicationSymbol = '*'
+	DivisionSymbol       = '/'
+	ModulusSymbol        = '%'
+)
 
 const (
-	ActionToken Token = iota
+	ActionToken TokenType = iota
+	AssignmentToken
+	VariableToken
 	CodeBlockOpenToken
 	CodeBlockCloseToken
-	UndefinedToken
+	OperatorAddToken
+	OperatorSubtractToken
+	OperatorMultiplyToken
+	OperatorDivideToken
+	OperatorModuloToken
+	ParenOpenToken
+	ParenCloseToken
+	DelimiterToken
+	DecimalToken
+	InvalidToken
 	IgnoreToken
-	NoToken Token = UndefinedTokenSymbol
+	NoToken TokenType = InvalidTokenSymbol
 )
 
-func (t Token) String() string {
-	switch t {
-	case ActionToken:
-		return "ActionToken"
-	case CodeBlockOpenToken:
-		return "CodeBlockOpenToken"
-	case CodeBlockCloseToken:
-		return "CodeBlockCloseToken"
-	case UndefinedToken:
-		return "UndefinedToken"
-	case NoToken:
-		return "NoToken"
-	case IgnoreToken:
-		return "IgnoreToken"
-	default:
-		return "UnknownToken"
-	}
+var (
+	ActionCallPattern           = regexp.MustCompile(fmt.Sprintf(`\w+\%c[^%c]*\%c`, ParenOpenSymbol, ParenCloseSymbol, ParenCloseSymbol))
+	ActionArgumentsPattern      = regexp.MustCompile(fmt.Sprintf(`^(\w+)\%c(.*)\%c$`, ParenOpenSymbol, ParenCloseSymbol))
+	AssignmentPattern           = regexp.MustCompile(fmt.Sprintf(`^\s*\w+\s*\%c\s*.+\s*$`, AssignmentSymbol))
+	AssignmentExpressionPattern = regexp.MustCompile(fmt.Sprintf(`^\s*(\w+)\s*\%c\s*(.+)\s*$`, AssignmentSymbol))
+	LegalNamePattern            = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+	VariableNamePattern         = regexp.MustCompile(fmt.Sprintf(`^[a-zA-Z_][a-zA-Z0-9_]*[^%c]$`, ParenOpenSymbol))
+	IntegerPattern              = regexp.MustCompile(`^-?\d+$`)
+	FloatPattern                = regexp.MustCompile(`^-?\d*\.\d+$`)
+	BooleanPattern              = regexp.MustCompile(`^(true|false)$`)
+	StringPattern               = regexp.MustCompile(`^".*"$`)
+)
+
+var Operators = string([]rune{
+	AdditionSymbol,
+	SubtractionSymbol,
+	MultiplicationSymbol,
+	DivisionSymbol,
+	ModulusSymbol,
+})
+
+type Token struct {
+	Type  TokenType
+	Value string
 }
-
-const (
-	ActionCallPattern      = `\w+\([^()]*\)`
-	ActionArgumentsPattern = `^(\w+)\((.*)\)$`
-)
 
 type Script struct {
 	Path           string
@@ -59,6 +87,48 @@ type Script struct {
 	Memory 		   *MemoryMap
 	MainBlock	   *Block
 	CurrentBlock   *Block
+}
+
+func (t TokenType) String() string {
+	switch t {
+	case ActionToken:
+		return "ActionToken"
+	case CodeBlockOpenToken:
+		return "CodeBlockOpenToken"
+	case CodeBlockCloseToken:
+		return "CodeBlockCloseToken"
+	case AssignmentToken:
+		return "AssignmentToken"
+	case VariableToken:
+		return "VariableToken"
+	case OperatorAddToken:
+		return "OperatorAddToken"
+	case OperatorSubtractToken:
+		return "OperatorSubtractToken"
+	case OperatorMultiplyToken:
+		return "OperatorMultiplyToken"
+	case OperatorDivideToken:
+		return "OperatorDivideToken"
+	case OperatorModuloToken:
+		return "OperatorModuloToken"
+	case DelimiterToken:
+		return "DelimiterToken"
+	case DecimalToken:
+		return "DecimalToken"
+	case IgnoreToken:
+		return "IgnoreToken"
+	case NoToken:
+		return "NoToken"
+	default:
+		return "InvalidToken"
+	}
+}
+
+func NewToken(tokenType TokenType, value string) *Token {
+	return &Token{
+		Type:  tokenType,
+		Value: value,
+	}
 }
 
 func NewScript(filePath string, memory *MemoryMap) (*Script, error) {

@@ -3,77 +3,209 @@ package taskwrappr
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
 
-func analyzeLine(line string) (Token, error) {
+func isLegalName(s string) bool {
+	return LegalNamePattern.MatchString(s)
+}
+
+func splitTopLevelArgs(argsString string) []string {
+	var args []string
+	var currentArg strings.Builder
+	openBrackets := 0
+	inQuotes := false
+	escaped := false
+
+	for _, ch := range argsString {
+		switch ch {
+		case ParenOpenSymbol:
+			if !inQuotes && !escaped {
+				openBrackets++
+			}
+		case ParenCloseSymbol:
+			if !inQuotes && !escaped {
+				openBrackets--
+			}
+		case StringSymbol:
+			if !escaped {
+				inQuotes = !inQuotes
+			}
+		case DelimiterSymbol:
+			if openBrackets == 0 && !inQuotes && !escaped {
+				args = append(args, strings.TrimSpace(currentArg.String()))
+				currentArg.Reset()
+				continue
+			}
+		}
+
+		currentArg.WriteRune(ch)
+
+		if ch == '\\' {
+			escaped = !escaped
+		} else {
+			escaped = false
+		}
+	}
+
+	if currentArg.Len() > 0 {
+		args = append(args, strings.TrimSpace(currentArg.String()))
+	}
+
+	return args
+}
+
+func analyzeTopLevelLine(line string) (*Token, error) {
 	line = strings.TrimSpace(line)
 	if line == "" {
-		return IgnoreToken, nil
+		return NewToken(IgnoreToken, line), nil
 	}
 
 	switch line[0] {
 	case CommentSymbol:
-		return IgnoreToken, nil
+		return NewToken(IgnoreToken, line), nil
 	case CodeBlockOpenSymbol:
-		return CodeBlockOpenToken, nil
+		return NewToken(CodeBlockOpenToken, line), nil
 	case CodeBlockCloseSymbol:
-		return CodeBlockCloseToken, nil
+		return NewToken(CodeBlockCloseToken, line), nil
 	}
 
-	if regexp.MustCompile(ActionCallPattern).MatchString(line) {
-		return ActionToken, nil
+	if ActionCallPattern.MatchString(line) {
+		return NewToken(ActionToken, line), nil
 	}
 
-	return UndefinedToken, fmt.Errorf("invalid line: %s", line)
+	if AssignmentPattern.MatchString(line) {
+		return NewToken(AssignmentToken, line), nil
+	}
+
+	// Other tokens like +=, -=, etc.
+
+	return NewToken(InvalidToken, line), fmt.Errorf("invalid line: %s", line)
 }
 
-func splitTopLevelArgs(argString string) []string {
-	var args []string
-	var currentArg strings.Builder
-	openBrackets := 0
-	for _, ch := range argString {
-		if ch == '(' {
-			openBrackets++
-		}
-		if ch == ')' {
-			openBrackets--
-		}
-		if ch == ActionArgumentDelim && openBrackets == 0 {
-			args = append(args, strings.TrimSpace(currentArg.String()))
-			currentArg.Reset()
-		} else {
-			currentArg.WriteRune(ch)
-		}
+func (s *Script) parseActionToken(token *Token) (*Action, error) {
+	match := ActionArgumentsPattern.FindStringSubmatch(token.Value)
+	if len(match) != 3 {
+		return nil, fmt.Errorf("invalid action call format: %s", token.Value)
 	}
-	if currentArg.Len() > 0 {
-		args = append(args, strings.TrimSpace(currentArg.String()))
+
+	actionName := match[1]
+	argsString := match[2]
+
+	actionFound := s.Memory.GetAction(actionName)
+	if actionFound == nil {
+		return nil, fmt.Errorf("undefined action: %s", actionName)
 	}
-	return args
+	action := NewAction(actionFound.ExecuteFunc, actionFound.ValidateFunc)
+
+	var parsedArgs []interface{}
+
+	rawArgs := splitTopLevelArgs(argsString)
+	fmt.Println(rawArgs)
+
+	for _, arg := range rawArgs {
+		arg = strings.TrimSpace(arg)
+		if arg == "" {
+			continue
+		}
+
+		parsedArg, err := s.parseExpression(arg)
+		if err != nil {
+			return nil, err
+		}
+		parsedArgs = append(parsedArgs, parsedArg)
+	}
+
+	action.Arguments = parsedArgs
+
+	return action, nil
 }
 
-func parseNonActionArg(argString string) (interface{}, error) {
-	if strings.HasPrefix(argString, string(StringSymbol)) && strings.HasSuffix(argString, string(StringSymbol)) {
-		return strings.Trim(argString, string(StringSymbol)), nil
-	} else if intValue, err := strconv.Atoi(argString); err == nil {
-		return intValue, nil
-	} else if floatValue, err := strconv.ParseFloat(argString, 64); err == nil {
-		return floatValue, nil
-	} else if boolValue, err := strconv.ParseBool(argString); err == nil {
-		return boolValue, nil
+func (s *Script) parseAssignmentToken(token *Token) (*Action, error) {
+	fmt.Println(token.Value)
+	return nil, nil
+}
+
+func (s *Script) parseVariableToken(expr string) (*Variable, error) {
+	if strings.HasPrefix(expr, string(StringSymbol)) && strings.HasSuffix(expr, string(StringSymbol)) {
+		return NewVariable(strings.Trim(expr, string(StringSymbol)), StringType), nil
+	} else if intValue, err := strconv.Atoi(expr); err == nil {
+		return NewVariable(intValue, IntegerType), nil
+	} else if floatValue, err := strconv.ParseFloat(expr, 64); err == nil {
+		return NewVariable(floatValue, FloatType), nil
+	} else if boolValue, err := strconv.ParseBool(expr); err == nil {
+		return NewVariable(boolValue, BooleanType), nil
+	} else if variable := s.Memory.GetVariable(expr); variable != nil {
+		return variable, nil
 	} else {
-		return nil, fmt.Errorf("invalid argument type: %s", argString)
+		return nil, fmt.Errorf("invalid literal: %s", expr)
 	}
+}
+
+func (s *Script) parseContent() (*Block, error) {
+	lines := strings.Split(s.CleanedContent, string(NewLineSymbol))
+
+	blockStack := []*Block{}
+	currentBlock := NewBlock()
+
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		token, err := analyzeTopLevelLine(line)
+		if err != nil {
+			return nil, fmt.Errorf("error analyzing line %d: %v", i+1, err)
+		}
+
+		switch token.Type {
+		case ActionToken:
+			action, err := s.parseActionToken(token)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing action on line %d: %v", i+1, err)
+			}
+
+			currentBlock.Actions = append(currentBlock.Actions, action)
+		case AssignmentToken:
+			action, err := s.parseAssignmentToken(token)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing assignment on line %d: %v", i+1, err)
+			}
+
+			currentBlock.Actions = append(currentBlock.Actions, action)
+		case CodeBlockOpenToken:
+			newBlock := NewBlock()
+			blockStack = append(blockStack, currentBlock)
+			currentBlock = newBlock
+		case CodeBlockCloseToken:
+			if len(blockStack) == 0 {
+				return nil, fmt.Errorf("unmatched closing brace on line %d", i+1)
+			}
+
+			completedBlock := currentBlock
+			currentBlock = blockStack[len(blockStack)-1]
+			blockStack = blockStack[:len(blockStack)-1]
+
+			if len(currentBlock.Actions) > 0 {
+				lastAction := currentBlock.Actions[len(currentBlock.Actions)-1]
+				lastAction.Block = completedBlock
+			} else {
+				return nil, fmt.Errorf("code block without preceding action on line %d", i+1)
+			}
+		}
+	}
+
+	if len(blockStack) > 0 {
+		return nil, fmt.Errorf("unmatched opening brace")
+	}
+
+	return currentBlock, nil
 }
 
 func (s *Script) runBlock(b *Block) error {
 	s.CurrentBlock = b
 	for _, action := range b.Actions {
 		if err := action.Validate(s); err != nil {
-            return err
-        }
+			return err
+		}
 
 		result, err := action.Execute(s)
 		if err != nil {
@@ -95,106 +227,10 @@ func (s *Script) runBlock(b *Block) error {
 	return nil
 }
 
-// TODO: Add support for non-global memory map
-func (s *Script) parseActionLine(line string) (*Action, error) {
-	match := regexp.MustCompile(ActionArgumentsPattern).FindStringSubmatch(line)
-    if len(match) != 3 {
-        return nil, fmt.Errorf("invalid function call format: %s", line)
-    }
-
-    actionName := match[1]
-    argString := match[2]
-
-	actionFound, ok := s.Memory.Actions[actionName];
-	if !ok {
-		return nil, fmt.Errorf("undefined action: %s", actionName)
-	}
-
-	action := NewAction(actionFound.ExecuteFunc, actionFound.ValidateFunc)
-
-	var parsedArgs []interface{}
-	parseArg := func(arg string) (interface{}, error) {
-        if nestedMatch := regexp.MustCompile(ActionArgumentsPattern).FindStringSubmatch(arg); len(nestedMatch) == 3 {
-			nestedAction, err := s.parseActionLine(nestedMatch[0])
-            if err != nil {
-                return nil, fmt.Errorf("error parsing nested action '%s': %v", arg, err)
-            }
-
-            return nestedAction, nil
-        } else {
-            return parseNonActionArg(arg)
-        }
-    }
-
-	rawArgs := splitTopLevelArgs(argString)
-    for _, arg := range rawArgs {
-        arg = strings.TrimSpace(arg)
-        if arg == "" {
-            continue
-        }
-
-        parsedArg, err := parseArg(arg)
-        if err != nil {
-            return nil, err
-        }
-        parsedArgs = append(parsedArgs, parsedArg)
-    }
-
-	action.Arguments = parsedArgs
-
-    return action, nil
-}
-
-func (s *Script) parseContent() (*Block, error) {
-	lines := strings.Split(s.CleanedContent, string(NewLineSymbol))
-
-	blockStack := []*Block{}
-	currentBlock := NewBlock()
-
-	for i := 0; i < len(lines); i++ {
-		line := lines[i]
-		token, err := analyzeLine(line)
-		if err != nil {
-			return nil, fmt.Errorf("error analyzing line %d: %v", i+1, err)
-		}
-
-		switch token {
-		case ActionToken:
-			action, err := s.parseActionLine(line)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing action on line %d: %v", i+1, err)
-			}
-			currentBlock.Actions = append(currentBlock.Actions, action)
-		case CodeBlockOpenToken:
-			newBlock := NewBlock()
-			blockStack = append(blockStack, currentBlock)
-			currentBlock = newBlock
-		case CodeBlockCloseToken:
-			if len(blockStack) == 0 {
-				return nil, fmt.Errorf("unmatched closing brace on line %d", i+1)
-			}
-			completedBlock := currentBlock
-			currentBlock = blockStack[len(blockStack)-1]
-			blockStack = blockStack[:len(blockStack)-1]
-			if len(currentBlock.Actions) > 0 {
-				lastAction := currentBlock.Actions[len(currentBlock.Actions)-1]
-				lastAction.Block = completedBlock
-			} else {
-				return nil, fmt.Errorf("code block without preceding action on line %d", i+1)
-			}
-		}
-	}
-
-	if len(blockStack) > 0 {
-		return nil, fmt.Errorf("unmatched opening brace")
-	}
-
-	return currentBlock, nil
-}
-
 func (s *Script) normalizeContent() (string, error) {
 	var result strings.Builder
 	inQuotes := false
+	escaped := false
 	lines := strings.Split(s.Content, string(NewLineSymbol))
 
 	openCurlyCount := 0
@@ -208,15 +244,31 @@ func (s *Script) normalizeContent() (string, error) {
 
 		for i := 0; i < len(line); i++ {
 			switch line[i] {
+			case '\\':
+				if inQuotes && !escaped {
+					escaped = true
+					result.WriteByte(line[i])
+				} else if escaped {
+					result.WriteByte(line[i])
+					escaped = false
+				} else {
+					result.WriteByte(line[i])
+					escaped = false
+				}
 			case StringSymbol:
 				result.WriteByte(line[i])
-				inQuotes = !inQuotes
-			case ' ', '\t':
-				if inQuotes {
+				if !escaped {
+					inQuotes = !inQuotes
+				} else {
+					escaped = false
+				}
+			case SpaceSymbol, ControlSymbol:
+				if inQuotes || escaped {
 					result.WriteByte(line[i])
 				}
+				escaped = false
 			case CodeBlockOpenSymbol:
-				if !inQuotes {
+				if !inQuotes && !escaped {
 					openCurlyCount++
 					result.WriteByte('\n')
 					result.WriteByte(line[i])
@@ -224,8 +276,9 @@ func (s *Script) normalizeContent() (string, error) {
 				} else {
 					result.WriteByte(line[i])
 				}
+				escaped = false
 			case CodeBlockCloseSymbol:
-				if !inQuotes {
+				if !inQuotes && !escaped {
 					openCurlyCount--
 					result.WriteByte('\n')
 					result.WriteByte(line[i])
@@ -233,22 +286,26 @@ func (s *Script) normalizeContent() (string, error) {
 				} else {
 					result.WriteByte(line[i])
 				}
-			case ActionOpenSymbol:
-				if !inQuotes {
+				escaped = false
+			case ParenOpenSymbol:
+				if !inQuotes && !escaped {
 					openParenCount++
 					result.WriteByte(line[i])
 				} else {
 					result.WriteByte(line[i])
 				}
-			case ActionCloseSymbol:
-				if !inQuotes {
+				escaped = false
+			case ParenCloseSymbol:
+				if !inQuotes && !escaped {
 					openParenCount--
 					result.WriteByte(line[i])
 				} else {
 					result.WriteByte(line[i])
 				}
+				escaped = false
 			default:
 				result.WriteByte(line[i])
+				escaped = false
 			}
 		}
 
