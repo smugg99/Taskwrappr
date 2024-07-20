@@ -3,7 +3,6 @@ package taskwrappr
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -38,7 +37,7 @@ func splitTopLevelArgs(argsString string) []string {
 
 		currentArg.WriteRune(ch)
 
-		if ch == '\\' {
+		if ch == EscapeSymbol {
 			escaped = !escaped
 		} else {
 			escaped = false
@@ -106,6 +105,7 @@ func (s *Script) parseActionToken(token *Token) (*Action, error) {
 		}
 
 		parsedArg, err := s.parseExpression(arg)
+
 		if err != nil {
 			return nil, err
 		}
@@ -119,22 +119,6 @@ func (s *Script) parseActionToken(token *Token) (*Action, error) {
 
 func (s *Script) parseAssignmentToken(token *Token) (*Action, error) {
 	return nil, nil
-}
-
-func (s *Script) parseVariableToken(expr string) (*Variable, error) {
-	if strings.HasPrefix(expr, string(StringSymbol)) && strings.HasSuffix(expr, string(StringSymbol)) {
-		return NewVariable(strings.Trim(expr, string(StringSymbol)), StringType), nil
-	} else if intValue, err := strconv.Atoi(expr); err == nil {
-		return NewVariable(intValue, IntegerType), nil
-	} else if floatValue, err := strconv.ParseFloat(expr, 64); err == nil {
-		return NewVariable(floatValue, FloatType), nil
-	} else if boolValue, err := strconv.ParseBool(expr); err == nil {
-		return NewVariable(boolValue, BooleanType), nil
-	} else if variable := s.Memory.GetVariable(expr); variable != nil {
-		return variable, nil
-	} else {
-		return nil, fmt.Errorf("invalid literal: %s", expr)
-	}
 }
 
 func (s *Script) parseContent() (*Block, error) {
@@ -237,7 +221,7 @@ func (s *Script) normalizeContent() (string, error) {
 
 		for i := 0; i < len(line); i++ {
 			switch line[i] {
-			case '\\':
+			case EscapeSymbol:
 				if inQuotes && !escaped {
 					escaped = true
 					result.WriteByte(line[i])
@@ -251,12 +235,10 @@ func (s *Script) normalizeContent() (string, error) {
 					inQuotes = !inQuotes
 				}
 			case CommentSymbol:
-				if !inQuotes && !escaped {
-					break
-				} else {
+				if inQuotes || escaped {
 					result.WriteByte(line[i])
 				}
-			case SpaceSymbol, '\t', '\r':
+			case SpaceSymbol, TabSymbol, ReturnSymbol:
 				if inQuotes || escaped {
 					result.WriteByte(line[i])
 				}
@@ -264,9 +246,9 @@ func (s *Script) normalizeContent() (string, error) {
 			case CodeBlockOpenSymbol:
 				if !inQuotes && !escaped {
 					openCurlyCount++
-					result.WriteByte('\n')
+					result.WriteByte(NewLineSymbol)
 					result.WriteByte(line[i])
-					result.WriteByte('\n')
+					result.WriteByte(NewLineSymbol)
 				} else {
 					result.WriteByte(line[i])
 				}
@@ -274,9 +256,9 @@ func (s *Script) normalizeContent() (string, error) {
 			case CodeBlockCloseSymbol:
 				if !inQuotes && !escaped {
 					openCurlyCount--
-					result.WriteByte('\n')
+					result.WriteByte(NewLineSymbol)
 					result.WriteByte(line[i])
-					result.WriteByte('\n')
+					result.WriteByte(NewLineSymbol)
 				} else {
 					result.WriteByte(line[i])
 				}
@@ -305,8 +287,8 @@ func (s *Script) normalizeContent() (string, error) {
 				break
 			}
 		}
-		if result.Len() > 0 && result.String()[result.Len()-1] != '\n' {
-			result.WriteByte('\n')
+		if result.Len() > 0 && result.String()[result.Len()-1] != NewLineSymbol {
+			result.WriteByte(NewLineSymbol)
 		}
 	}
 
@@ -327,7 +309,7 @@ func (s *Script) normalizeContent() (string, error) {
 		trimmedLine := strings.TrimSpace(line)
 		if trimmedLine != "" {
 			cleanedResult.WriteString(trimmedLine)
-			cleanedResult.WriteByte('\n')
+			cleanedResult.WriteByte(NewLineSymbol)
 		}
 	}
 

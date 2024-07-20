@@ -11,10 +11,11 @@ type TokenType    int
 
 const (
 	NewLineSymbol        = '\n'
+	TabSymbol		     = '\t'
+	ReturnSymbol         = '\r'
+	EscapeSymbol		 = '\\'
 	StringSymbol         = '"'
 	SpaceSymbol          = ' '
-	ControlSymbol		 = '\t'
-	EscapeSymbol		 = '\\'
 	CommentSymbol        = '#'
 	CodeBlockOpenSymbol  = '{'
 	CodeBlockCloseSymbol = '}'
