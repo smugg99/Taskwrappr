@@ -7,10 +7,6 @@ import (
 	"strings"
 )
 
-func isLegalName(s string) bool {
-	return LegalNamePattern.MatchString(s)
-}
-
 func splitTopLevelArgs(argsString string) []string {
 	var args []string
 	var currentArg strings.Builder
@@ -102,7 +98,6 @@ func (s *Script) parseActionToken(token *Token) (*Action, error) {
 	var parsedArgs []interface{}
 
 	rawArgs := splitTopLevelArgs(argsString)
-	fmt.Println(rawArgs)
 
 	for _, arg := range rawArgs {
 		arg = strings.TrimSpace(arg)
@@ -123,7 +118,6 @@ func (s *Script) parseActionToken(token *Token) (*Action, error) {
 }
 
 func (s *Script) parseAssignmentToken(token *Token) (*Action, error) {
-	fmt.Println(token.Value)
 	return nil, nil
 }
 
@@ -232,7 +226,6 @@ func (s *Script) normalizeContent() (string, error) {
 	inQuotes := false
 	escaped := false
 	lines := strings.Split(s.Content, string(NewLineSymbol))
-
 	openCurlyCount := 0
 	openParenCount := 0
 
@@ -248,9 +241,6 @@ func (s *Script) normalizeContent() (string, error) {
 				if inQuotes && !escaped {
 					escaped = true
 					result.WriteByte(line[i])
-				} else if escaped {
-					result.WriteByte(line[i])
-					escaped = false
 				} else {
 					result.WriteByte(line[i])
 					escaped = false
@@ -259,10 +249,14 @@ func (s *Script) normalizeContent() (string, error) {
 				result.WriteByte(line[i])
 				if !escaped {
 					inQuotes = !inQuotes
-				} else {
-					escaped = false
 				}
-			case SpaceSymbol, ControlSymbol:
+			case CommentSymbol:
+				if !inQuotes && !escaped {
+					break
+				} else {
+					result.WriteByte(line[i])
+				}
+			case SpaceSymbol, '\t', '\r':
 				if inQuotes || escaped {
 					result.WriteByte(line[i])
 				}
@@ -307,8 +301,10 @@ func (s *Script) normalizeContent() (string, error) {
 				result.WriteByte(line[i])
 				escaped = false
 			}
+			if line[i] == CommentSymbol && !inQuotes && !escaped {
+				break
+			}
 		}
-
 		if result.Len() > 0 && result.String()[result.Len()-1] != '\n' {
 			result.WriteByte('\n')
 		}
@@ -317,11 +313,9 @@ func (s *Script) normalizeContent() (string, error) {
 	if inQuotes {
 		return "", fmt.Errorf("unclosed string literal")
 	}
-
 	if openCurlyCount != 0 {
 		return "", fmt.Errorf("unbalanced curly braces")
 	}
-
 	if openParenCount != 0 {
 		return "", fmt.Errorf("unbalanced parentheses")
 	}
@@ -329,7 +323,6 @@ func (s *Script) normalizeContent() (string, error) {
 	cleaned := strings.TrimSpace(result.String())
 	lines = strings.Split(cleaned, string(NewLineSymbol))
 	cleanedResult := strings.Builder{}
-
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 		if trimmedLine != "" {

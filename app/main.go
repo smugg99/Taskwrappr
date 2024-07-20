@@ -11,8 +11,12 @@ import (
 func main() {
 	memoryMap := taskwrappr.GetInternals()
 
-	memoryMap.Variables["someVar"] = taskwrappr.NewVariable("dupa", taskwrappr.StringType)
-	memoryMap.Variables["someOtherVar"] = taskwrappr.NewVariable(true, taskwrappr.BooleanType)
+	memoryMap.Variables["someStringVar"] = taskwrappr.NewVariable("dupa", taskwrappr.StringType)
+	memoryMap.Variables["someCastableVar"] = taskwrappr.NewVariable("-6.9", taskwrappr.StringType)
+	memoryMap.Variables["someBoolVar"] = taskwrappr.NewVariable(true, taskwrappr.BooleanType)
+	memoryMap.Variables["someIntVar"] = taskwrappr.NewVariable(42, taskwrappr.IntegerType)
+	memoryMap.Variables["someFloatVar"] = taskwrappr.NewVariable(3.14, taskwrappr.FloatType)
+	memoryMap.Variables["someNegativeVar"] = taskwrappr.NewVariable(-21.37, taskwrappr.FloatType)
 
 	memoryMap.Actions["navigate"] = taskwrappr.NewAction(func(s *taskwrappr.Script, args ...interface{}) (interface{}, error) {
 		if len(args) < 1 {

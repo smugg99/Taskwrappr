@@ -38,6 +38,7 @@ const (
 	ActionToken TokenType = iota
 	AssignmentToken
 	VariableToken
+	LiteralToken
 	CodeBlockOpenToken
 	CodeBlockCloseToken
 	OperatorAddToken
@@ -54,6 +55,11 @@ const (
 	NoToken TokenType = InvalidTokenSymbol
 )
 
+const (
+	TrueString  = "true"
+	FalseString = "false"
+)
+
 var (
 	ActionCallPattern           = regexp.MustCompile(fmt.Sprintf(`\w+\%c[^%c]*\%c`, ParenOpenSymbol, ParenCloseSymbol, ParenCloseSymbol))
 	ActionArgumentsPattern      = regexp.MustCompile(fmt.Sprintf(`^(\w+)\%c(.*)\%c$`, ParenOpenSymbol, ParenCloseSymbol))
@@ -63,8 +69,8 @@ var (
 	VariableNamePattern         = regexp.MustCompile(fmt.Sprintf(`^[a-zA-Z_][a-zA-Z0-9_]*[^%c]$`, ParenOpenSymbol))
 	IntegerPattern              = regexp.MustCompile(`^-?\d+$`)
 	FloatPattern                = regexp.MustCompile(`^-?\d*\.\d+$`)
-	BooleanPattern              = regexp.MustCompile(`^(true|false)$`)
-	StringPattern               = regexp.MustCompile(`^".*"$`)
+	BooleanPattern              = regexp.MustCompile(fmt.Sprintf(`^(%s|%s)$`, TrueString, FalseString))
+	StringPattern               = regexp.MustCompile(fmt.Sprintf(`^%c.*%c$`, StringSymbol, StringSymbol))
 )
 
 var Operators = string([]rune{
@@ -101,6 +107,12 @@ func (t TokenType) String() string {
 		return "AssignmentToken"
 	case VariableToken:
 		return "VariableToken"
+	case LiteralToken:
+		return "LiteralToken"
+	case ParenOpenToken:
+		return "ParenOpenToken"
+	case ParenCloseToken:
+		return "ParenCloseToken"
 	case OperatorAddToken:
 		return "OperatorAddToken"
 	case OperatorSubtractToken:
