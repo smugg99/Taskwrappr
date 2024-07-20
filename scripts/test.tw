@@ -5,4 +5,4 @@
 # and continue until the end of the line
 # they are ignored by the interpreter
 
-print(1 + pass(1 + 2, pass(pass(5), 2), -2.2, 1.5 "i like -+(("/")) \"((corn))") + someVar + "i hate niggers" + -someVar / -(-123 * (-56.26 - 56.25)) - -1)
+print(1 + pass(1 + 2, pass(pass(5), 2), -2.2, 1.5 "i like -+(("/")) \"((corn))") + someVar + "i hate snigglers" + -someVar / -(-123 * (-56.26 - 56.25)) - -1)
