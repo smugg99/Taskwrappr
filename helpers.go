@@ -105,10 +105,10 @@ func (s *Script) parseActionToken(token *Token) (*Action, error) {
 		}
 
 		parsedArg, err := s.parseExpression(arg)
-
 		if err != nil {
 			return nil, err
 		}
+		
 		parsedArgs = append(parsedArgs, parsedArg)
 	}
 

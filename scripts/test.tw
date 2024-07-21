@@ -5,16 +5,18 @@
 # and continue until the end of the line
 # they are ignored by the interpreter
 
-# print(1 + pass(1 + 2, pass(pass(5), 2), -2.2, 1.5 "i like -+(("/")) \"((corn))") + someVar + "i hate snigglers" + -someVar / -(-123 * (-56.26 - 56.25)) - -1)
-# print(3 + 5 * 2)              # Output: 13
-# print((4 + 6) / 2)            # Output: 5.0
-# print(7 - 3 + 2 * 4)          # Output: 12
-# print((8 - 2) * (3 + 1))      # Output: 24
-# print(5 * (2 + 3) * 2)        # Output: 50
-# print((10 - 3) * 4 - 6)       # Output: 22
-# print(9 / (3 + 2) * 4)        # Output: 7.2
-# print(12 / 2 * (5 - 1))       # Output: 24.0
-# print((6 + 2 * 3) / 4)        # Output: 3.0
-# print((7 + 8) / (2 * 3))      # Output: 2.5
+print(1 + pass(1 + 2 + pass(pass(5 + 1) + 11) + 2 - 2.2 + 1.5) + -someIntVar + someIntVar / (--123 * (-56.26 - 56.25)) - -1)
+print(5.2 % 3) 				  # Output: 10
+print(3 + 5 * 2^2)              # Output: 13
+print(1.0) 					  # Output: 1
+print((4 + 6) / 2)            # Output: 5.0
+print(7 - 3 + 2 * 4)          # Output: 12
+print((8 - 2) * (3 + 1))      # Output: 24
+print(5 * (2 + 3) * 2)        # Output: 50
+print((10 - 3) * 4 - 6)       # Output: 22
+print(9 / (3 + 2) * 4)        # Output: 7.2
+print(12 / 2 * (5 - 1))       # Output: 24.0
+print((6 + 2 * 3) / 4)        # Output: 3.0
+print((7 + 8) / (2 * 3))      # Output: 2.5
 
-print(pass(someNotCastableVar + someCastableVar + 2 + someIntVar + pass(pass(11)))) # Test
+#print(pass(someNotCastableVar + someCastableVar + 2 + someIntVar + pass(pass(11)))) # Test

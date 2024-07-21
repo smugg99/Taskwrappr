@@ -33,6 +33,7 @@ const (
 	MultiplicationSymbol = '*'
 	DivisionSymbol       = '/'
 	ModulusSymbol        = '%'
+	ExponentSymbol       = '^'
 )
 
 const (
@@ -44,6 +45,8 @@ const (
 	CodeBlockCloseToken
 	OperatorAddToken
 	OperatorSubtractToken
+	OperatorUnaryMinusToken
+	OperatorExponentToken
 	OperatorMultiplyToken
 	OperatorDivideToken
 	OperatorModuloToken
@@ -80,6 +83,7 @@ var Operators = string([]rune{
 	MultiplicationSymbol,
 	DivisionSymbol,
 	ModulusSymbol,
+	ExponentSymbol,
 })
 
 type Token struct {
