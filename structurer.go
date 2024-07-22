@@ -3,6 +3,7 @@ package taskwrappr
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 )
 
@@ -37,6 +38,8 @@ const (
 	IntegerType
 	FloatType
 	BooleanType
+	NilType
+	DetermineType
 	InvalidType
 )
 
@@ -50,6 +53,10 @@ func (v VariableType) String() string {
         return "float"
     case BooleanType:
         return "boolean"
+	case NilType:
+		return "nil"
+	case DetermineType:
+		return "determine"
     default:
         return "invalid"
     }
@@ -59,6 +66,25 @@ func NewVariable(value interface{}, variableType VariableType) *Variable {
 	return &Variable{
 		Value: value,
         Type:  variableType,
+	}
+}
+
+func DetermineVariableType(v interface{}) VariableType {
+	if v == nil {
+		return NilType
+	}
+
+	switch reflect.TypeOf(v).Kind() {
+	case reflect.String:
+		return StringType
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return IntegerType
+	case reflect.Float32, reflect.Float64:
+		return FloatType
+	case reflect.Bool:
+		return BooleanType
+	default:
+		return InvalidType
 	}
 }
 
@@ -173,6 +199,30 @@ func (m *MemoryMap) GetVariable(name string) *Variable {
 	if !ok {
 		return nil
 	}
+	return variable
+}
+
+func (m *MemoryMap) MakeVariable(name string, value interface{}) *Variable {
+	variable := NewVariable(value, DetermineVariableType(value))
+	m.Variables[name] = variable
+
+	return variable
+}
+
+func (m *MemoryMap) SetVariable(name string, value interface{}, variableType VariableType) *Variable {
+	fmt.Println(name, value, variableType)
+	variable := m.GetVariable(name)
+	if variable == nil {
+		return m.MakeVariable(name, value)
+	}
+
+	if variableType == DetermineType {
+		variableType = DetermineVariableType(value)
+	}
+
+	variable.Value = value
+	variable.Type = variableType
+
 	return variable
 }
 

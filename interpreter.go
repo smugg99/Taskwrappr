@@ -34,11 +34,13 @@ const (
 	DivisionSymbol       = '/'
 	ModulusSymbol        = '%'
 	ExponentSymbol       = '^'
+	SelfReferenceSymbol  = '~'
 )
 
 const (
 	ActionToken TokenType = iota
 	AssignmentToken
+	AugmentedAssignmentToken
 	VariableToken
 	LiteralToken
 	CodeBlockOpenToken
@@ -65,16 +67,19 @@ const (
 )
 
 var (
-	ActionCallPattern           = regexp.MustCompile(fmt.Sprintf(`\w+\%c[^%c]*\%c`, ParenOpenSymbol, ParenCloseSymbol, ParenCloseSymbol))
-	ActionArgumentsPattern      = regexp.MustCompile(fmt.Sprintf(`^(\w+)\%c(.*)\%c$`, ParenOpenSymbol, ParenCloseSymbol))
-	AssignmentPattern           = regexp.MustCompile(fmt.Sprintf(`^\s*\w+\s*\%c\s*.+\s*$`, AssignmentSymbol))
-	AssignmentExpressionPattern = regexp.MustCompile(fmt.Sprintf(`^\s*(\w+)\s*\%c\s*(.+)\s*$`, AssignmentSymbol))
-	LegalNamePattern            = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
-	VariableNamePattern         = regexp.MustCompile(fmt.Sprintf(`^[a-zA-Z_][a-zA-Z0-9_]*[^%c]$`, ParenOpenSymbol))
-	IntegerPattern              = regexp.MustCompile(`^-?\d+$`)
-	FloatPattern                = regexp.MustCompile(`^-?\d*\.\d+$`)
-	BooleanPattern              = regexp.MustCompile(fmt.Sprintf(`^(%s|%s)$`, TrueString, FalseString))
-	StringPattern               = regexp.MustCompile(fmt.Sprintf(`^%c.*%c$`, StringSymbol, StringSymbol))
+	ActionCallPattern             = regexp.MustCompile(fmt.Sprintf(`\w+\%c[^%c]*\%c`, ParenOpenSymbol, ParenCloseSymbol, ParenCloseSymbol))
+	ActionArgumentsPattern        = regexp.MustCompile(fmt.Sprintf(`^(\w+)\%c(.*)\%c$`, ParenOpenSymbol, ParenCloseSymbol))
+	AssignmentPattern             = regexp.MustCompile(fmt.Sprintf(`^\s*([a-zA-Z_]\w*)\s*%c\s*(.+)\s*$`, AssignmentSymbol))
+	LegalNamePattern              = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+	VariableNamePattern           = regexp.MustCompile(fmt.Sprintf(`^[a-zA-Z_][a-zA-Z0-9_]*[^%c]$`, ParenOpenSymbol))
+	IntegerPattern                = regexp.MustCompile(`^-?\d+$`)
+	FloatPattern                  = regexp.MustCompile(`^-?\d*\.\d+$`)
+	BooleanPattern                = regexp.MustCompile(fmt.Sprintf(`^(%s|%s)$`, TrueString, FalseString))
+	StringPattern                 = regexp.MustCompile(fmt.Sprintf(`^%c.*%c$`, StringSymbol, StringSymbol))
+	AugmentedAssignementPattern   = regexp.MustCompile(fmt.Sprintf(
+		`^\s*(\w+)\s*([\%c\%c\%c\%c\%c]=)\s*(.*)\s*$`,
+		AdditionSymbol, SubtractionSymbol, MultiplicationSymbol, DivisionSymbol, ModulusSymbol,
+	))
 )
 
 var Operators = string([]rune{
@@ -110,6 +115,8 @@ func (t TokenType) String() string {
 		return "CodeBlockCloseToken"
 	case AssignmentToken:
 		return "AssignmentToken"
+	case AugmentedAssignmentToken:
+		return "AugmentedAssignmentToken"
 	case VariableToken:
 		return "VariableToken"
 	case LiteralToken:
