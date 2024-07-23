@@ -5,29 +5,34 @@
 # and continue until the end of the line
 # they are ignored by the interpreter
 
-balls = "balls"
+print("ballse")
+balls = pass("balls")
 print("Hello", balls)
 balls = "other balls"
 print("Hello", balls)
 
-someIntVar = 5
+someOtherIntVar = 11
 print(someIntVar)
-someIntVar += 1
+someIntVar = 5 + 1 + someOtherIntVar + -(pass(2 + 2) * 2)
 print(someIntVar)
 
-print(1 + pass(1 + 2 + pass(pass(5 + 1) + 11) + 2 - 2.2 + 1.5) + -someIntVar + someIntVar / (--123 * (-56.26 - 56.25)) - -1)
-print(5.2 % 3)
-print(3 + 5 * 2^2)
-print(1.0)
-print((4 + 6) / 2)
-print(7 - 3 + 2 * 4)
-print((8 - 2) * (3 + 1))
-print(5 * (2 + 3) * 2)
-print((10 - 3) * 4 - 6)
-print(9 / (3 + 2) * 4)
-print(12 / 2 * (5 - 1))
-print((6 + 2 * 3) / 4)
-print((7 + 8) / (2 * 3))
-print(-5 + 2 - (-3))
+someIntVar += 11
 
-#print(pass(someNotCastableVar + someCastableVar + 2 + someIntVar + pass(pass(11)))) # Test
+print(pass(pass(2, 11), 2), pass(2))
+
+# print(1 + pass(1 + 2 + pass(pass(5 + 1) + 11) + 2 - 2.2 + 1.5) + -someIntVar + someIntVar / (--123 * (-56.26 - 56.25)) - -1)
+# print(5.2 % 3)
+# print(3 + 5 * 2^2)
+# print(1.0)
+# print((4 + 6) / 2)
+# print(7 - 3 + 2 * 4)
+# print((8 - 2) * (3 + 1))
+# print(5 * (2 + 3) * 2)
+# print((10 - 3) * 4 - 6)
+# print(9 / (3 + 2) * 4)
+# print(12 / 2 * (5 - 1))
+# print((6 + 2 * 3) / 4)
+# print((7 + 8) / (2 * 3))
+# print(-5 + 2 - (-3))
+
+print(pass(someNotCastableVar + someCastableVar + 2 + someIntVar + pass(pass(11)))) # Test

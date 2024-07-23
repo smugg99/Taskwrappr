@@ -140,22 +140,22 @@ func (v *Variable) toInt() (int, error) {
 }
 
 func (v *Variable) toFloat() (float64, error) {
-	switch v.Type {
-	case StringType:
-		if f, err := strconv.ParseFloat(v.Value.(string), 64); err == nil {
-			return f, nil
-		}
-	case IntegerType:
-		return float64(v.Value.(int)), nil
-	case FloatType:
-		return v.Value.(float64), nil
-	case BooleanType:
-		if v.Value.(bool) {
-			return 1.0, nil
-		}
-		return 0.0, nil
-	}
-	return 0.0, fmt.Errorf("cannot convert %v to float", v.Type)
+    switch v.Type {
+    case StringType:
+        if f, err := strconv.ParseFloat(v.Value.(string), 64); err == nil {
+            return f, nil
+        }
+    case IntegerType:
+        return float64(v.Value.(int)), nil
+    case FloatType:
+        return v.Value.(float64), nil
+    case BooleanType:
+        if v.Value.(bool) {
+            return 1.0, nil
+        }
+        return 0.0, nil
+    }
+    return 0.0, fmt.Errorf("cannot convert %v to float", v.Type)
 }
 
 func (v *Variable) toBool() (interface{}, error) {
@@ -210,7 +210,6 @@ func (m *MemoryMap) MakeVariable(name string, value interface{}) *Variable {
 }
 
 func (m *MemoryMap) SetVariable(name string, value interface{}, variableType VariableType) *Variable {
-	fmt.Println(name, value, variableType)
 	variable := m.GetVariable(name)
 	if variable == nil {
 		return m.MakeVariable(name, value)
@@ -241,7 +240,6 @@ func NewAction(executeFunc func(s *Script, args ...interface{}) (interface{}, er
 
 func (a *Action) ProcessArgs(s *Script) ([]interface{}, error) {
     processedArgs := make([]interface{}, len(a.Arguments))
-
     for i, arg := range a.Arguments {
         switch v := arg.(type) {
         case *Action:
@@ -249,15 +247,13 @@ func (a *Action) ProcessArgs(s *Script) ([]interface{}, error) {
             if err != nil {
                 return nil, err
             }
-
             processedArgs[i] = processedArg
         case *Variable:
             processedArgs[i] = v.Value
         default:
-            return nil, fmt.Errorf("unsupported argument type: %T", arg)
+            processedArgs[i] = arg
         }
     }
-
     return processedArgs, nil
 }
 

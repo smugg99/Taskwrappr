@@ -51,7 +51,7 @@ func splitTopLevelArgs(argsString string) []string {
 	return args
 }
 
-func analyzeTopLevelLine(line string) (*Token, error) {
+func tokenizeLine(line string) (*Token, error) {
 	line = strings.TrimSpace(line)
 	if line == "" {
 		return NewToken(IgnoreToken, line), nil
@@ -66,19 +66,17 @@ func analyzeTopLevelLine(line string) (*Token, error) {
 		return NewToken(CodeBlockCloseToken, line), nil
 	}
 
-	if ActionCallPattern.MatchString(line) {
-		return NewToken(ActionToken, line), nil
-	}
-
 	if AssignmentPattern.MatchString(line) {
 		return NewToken(AssignmentToken, line), nil
+	}
+
+	if ActionCallPattern.MatchString(line) {
+		return NewToken(ActionToken, line), nil
 	}
 
 	if AugmentedAssignementPattern.MatchString(line) {
 		return NewToken(AugmentedAssignmentToken, line), nil
 	}
-
-	// Other tokens like +=, -=, etc.
 
 	return NewToken(InvalidToken, line), fmt.Errorf("invalid line: %s", line)
 }
@@ -130,25 +128,34 @@ func (s *Script) parseAssignmentToken(token *Token) (*Action, error) {
 	varName := match[1]
 	exprString := match[2]
 
-	s.Memory.MakeVariable(varName, nil)
-
-	parsedExpr, err := s.parseExpression(exprString)
-	if err != nil {
-		return nil, err
-	}
-
 	assignmentAction := func(s *Script, args ...interface{}) (interface{}, error) {
-		return s.Memory.SetVariable(varName, parsedExpr.Value, parsedExpr.Type), nil
+		parseExprAction, err := s.parseExpression(exprString)
+		if err != nil {
+			return nil, err
+		}
+
+		parsedExpr, err := parseExprAction.Execute(s)
+		if err != nil {
+			return nil, err
+		}
+
+		exprVar, ok := parsedExpr.(*Variable)
+		if !ok {
+			return nil, fmt.Errorf("invalid assignment expression: %s, %T", exprString, exprVar)
+		}
+
+		variable := s.Memory.SetVariable(varName, exprVar.Value, exprVar.Type)
+
+		return variable, nil
 	}
 
-	action := NewAction(assignmentAction, nil)
-
-	return action, nil
+	return NewAction(assignmentAction, nil), nil
 }
 
 func (s *Script) parseAugmentedAssignmentToken(token *Token) (*Action, error) {
 	match := AugmentedAssignementPattern.FindStringSubmatch(token.Value)
 	if len(match) != 3 {
+		fmt.Println(match)
 		return nil, fmt.Errorf("invalid augmented assignment format: %s", token.Value)
 	}
 
@@ -160,21 +167,31 @@ func (s *Script) parseAugmentedAssignmentToken(token *Token) (*Action, error) {
 		return nil, fmt.Errorf("undefined variable: %s", varName)
 	}
 
-	parsedExpr, err := s.parseExpression(exprString)
+	parseExprAction, err := s.parseExpression(exprString)
 	if err != nil {
 		return nil, err
 	}
 
 	assignmentAction := func(s *Script, args ...interface{}) (interface{}, error) {
-		switch parsedExpr.Type {
+		parsedExpr, err := parseExprAction.Execute(s)
+		if err != nil {
+			return nil, err
+		}
+
+		exprVar, ok := parsedExpr.(*Variable)
+		if !ok {
+			return nil, fmt.Errorf("invalid augmented assignment expression: %s", exprString)
+		}
+
+		switch exprVar.Type {
 		case IntegerType:
-			variable.Value = variable.Value.(int) + parsedExpr.Value.(int)
+			variable.Value = variable.Value.(int) + exprVar.Value.(int)
 		case FloatType:
-			variable.Value = variable.Value.(float64) + parsedExpr.Value.(float64)
+			variable.Value = variable.Value.(float64) + exprVar.Value.(float64)
 		case StringType:
-			variable.Value = variable.Value.(string) + parsedExpr.Value.(string)
+			variable.Value = variable.Value.(string) + exprVar.Value.(string)
 		default:
-			return nil, fmt.Errorf("unsupported type for augmented assignment: %s", parsedExpr.Type)
+			return nil, fmt.Errorf("unsupported type for augmented assignment: %s", exprVar.Type)
 		}
 
 		return variable.Value, nil
@@ -193,7 +210,7 @@ func (s *Script) parseContent() (*Block, error) {
 
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
-		token, err := analyzeTopLevelLine(line)
+		token, err := tokenizeLine(line)
 		if err != nil {
 			return nil, fmt.Errorf("error analyzing line %d: %v", i+1, err)
 		}

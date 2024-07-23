@@ -81,34 +81,30 @@ func findClosingParen(runes []rune, start int) int {
 }
 
 func parseLiteral(exprString string) (*Variable, error) {
-	exprString = strings.TrimSpace(exprString)
+    exprString = strings.TrimSpace(exprString)
 
-	if IntegerPattern.MatchString(exprString) {
-		if value, err := strconv.Atoi(exprString); err == nil {
-			return NewVariable(value, IntegerType), nil
-		}
-	}
-
-	if FloatPattern.MatchString(exprString) {
-		if value, err := strconv.ParseFloat(exprString, 64); err == nil {
-			return NewVariable(value, FloatType), nil
-		}
-	}
-
-	if BooleanPattern.MatchString(exprString) {
-		if exprString == TrueString {
-			return NewVariable(true, BooleanType), nil
-		}
-		if exprString == FalseString {
-			return NewVariable(false, BooleanType), nil
-		}
-	}
-
-	if StringPattern.MatchString(exprString) {
-		return NewVariable(exprString[1:len(exprString)-1], StringType), nil
-	}
-
-	return nil, fmt.Errorf("unable to parse literal: %s", exprString)
+    if IntegerPattern.MatchString(exprString) {
+        if value, err := strconv.Atoi(exprString); err == nil {
+            return NewVariable(value, IntegerType), nil
+        }
+    }
+    if FloatPattern.MatchString(exprString) {
+        if value, err := strconv.ParseFloat(exprString, 64); err == nil {
+            return NewVariable(value, FloatType), nil
+        }
+    }
+    if BooleanPattern.MatchString(exprString) {
+        if exprString == TrueString {
+            return NewVariable(true, BooleanType), nil
+        }
+        if exprString == FalseString {
+            return NewVariable(false, BooleanType), nil
+        }
+    }
+    if StringPattern.MatchString(exprString) {
+        return NewVariable(exprString[1:len(exprString)-1], StringType), nil
+    }
+    return nil, fmt.Errorf("unable to parse literal: %s", exprString)
 }
 
 func parseExpression(exprString string) ([]string, error) {
@@ -206,6 +202,33 @@ func tokenizeExpression(exprs []string) ([]*Token, error) {
 	return tokens, nil
 }
 
+func ensureArithmeticOperands(a, b *Variable) (*Variable, *Variable, error) {
+    var err error
+    switch a.Type {
+    case IntegerType, FloatType:
+    default:
+        if a, err = castToFloat(a); err != nil {
+            return nil, nil, err
+        }
+    }
+    switch b.Type {
+    case IntegerType, FloatType:
+    default:
+        if b, err = castToFloat(b); err != nil {
+            return nil, nil, err
+        }
+    }
+    return a, b, nil
+}
+
+func castToFloat(v *Variable) (*Variable, error) {
+    value, err := v.toFloat()
+    if err != nil {
+        return nil, fmt.Errorf("could not cast %v to float: %v", v.Value, err)
+    }
+    return NewVariable(value, FloatType), nil
+}
+
 func (s *Script) toRPN(tokens []*Token) []*Token {
 	var output []*Token
 	var operatorStack []*Token
@@ -248,150 +271,137 @@ func (s *Script) toRPN(tokens []*Token) []*Token {
 }
 
 func (s *Script) evaluateRPN(rpn []*Token) (*Variable, error) {
-	var stack []float64
-	for _, token := range rpn {
-		switch token.Type {
-		case ActionToken:
-			action, err := s.parseActionToken(token)
-			if err != nil {
-				return nil, err
-			}
-			value, err := action.Execute(s)
-			if err != nil {
-				return nil, err
-			}
-			if values, ok := value.([]interface{}); ok {
-				if len(values) > 1 {
-					return nil, fmt.Errorf("action '%s' returned multiple values", token.Value)
-				} else if len(values) == 1 {
-					if floatValue, ok := values[0].(float64); ok {
-						stack = append(stack, floatValue)
-					} else {
-						return nil, fmt.Errorf("action '%s' returned a non-float64 value", token.Value)
-					}
-				}
-			} else {
-				if floatValue, ok := value.(float64); ok {
-					stack = append(stack, floatValue)
-				} else {
-					return nil, fmt.Errorf("action '%s' returned a non-float64 value", token.Value)
-				}
-			}
-		case VariableToken:
-			variable := s.Memory.GetVariable(token.Value)
-			if variable == nil {
-				return nil, fmt.Errorf("undefined variable: %s", token.Value)
-			}
-			if variable.Type != FloatType {
-				fmt.Println(variable.Type, variable, variable.Value)
-				if value, err := variable.toFloat(); err != nil {
-					return nil, err
-				} else {
-					stack = append(stack, value)
-				}
-			} else {
-				stack = append(stack, variable.Value.(float64))
-			}
-		case LiteralToken:
-			value, err := strconv.ParseFloat(token.Value, 64)
-			if err != nil {
-				return nil, err
-			}
-			stack = append(stack, value)
-		case OperatorUnaryMinusToken:
-			if len(stack) < 1 {
-				return nil, fmt.Errorf("insufficient values for unary operation")
-			}
-			a := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			stack = append(stack, -a)
-		case OperatorAddToken:
-			if len(stack) < 2 {
-				return nil, fmt.Errorf("insufficient values in expression")
-			}
-			b, a := stack[len(stack)-1], stack[len(stack)-2]
-			stack = stack[:len(stack)-2]
-			stack = append(stack, a+b)
-		case OperatorSubtractToken:
-			if len(stack) < 2 {
-				return nil, fmt.Errorf("insufficient values in expression")
-			}
-			b, a := stack[len(stack)-1], stack[len(stack)-2]
-			stack = stack[:len(stack)-2]
-			stack = append(stack, a-b)
-		case OperatorMultiplyToken:
-			if len(stack) < 2 {
-				return nil, fmt.Errorf("insufficient values in expression")
-			}
-			b, a := stack[len(stack)-1], stack[len(stack)-2]
-			stack = stack[:len(stack)-2]
-			stack = append(stack, a*b)
-		case OperatorDivideToken:
-			if len(stack) < 2 {
-				return nil, fmt.Errorf("insufficient values in expression")
-			}
-			b, a := stack[len(stack)-1], stack[len(stack)-2]
-			stack = stack[:len(stack)-2]
-			if b == 0 {
-				return nil, fmt.Errorf("division by zero")
-			}
-			stack = append(stack, a/b)
-		case OperatorModuloToken:
-			if len(stack) < 2 {
-				return nil, fmt.Errorf("insufficient values in expression")
-			}
-			b, a := stack[len(stack)-1], stack[len(stack)-2]
-			stack = stack[:len(stack)-2]
-			stack = append(stack, math.Mod(a, b))
-		case OperatorExponentToken:
-			if len(stack) < 2 {
-				return nil, fmt.Errorf("insufficient values in expression")
-			}
-			b, a := stack[len(stack)-1], stack[len(stack)-2]
-			stack = stack[:len(stack)-2]
-			stack = append(stack, math.Pow(a, b))
-		}
-	}
-	if len(stack) != 1 {
-		return nil, fmt.Errorf("invalid expression")
-	}
+    var stack []*Variable
 
-	return NewVariable(stack[0], FloatType), nil
+    for _, token := range rpn {
+        switch token.Type {
+        case ActionToken:
+            action, err := s.parseActionToken(token)
+            if err != nil {
+                return nil, err
+            }
+            value, err := action.Execute(s)
+            if err != nil {
+                return nil, err
+            }
+            variable := NewVariable(value, DetermineVariableType(value))
+            stack = append(stack, variable)
+
+        case VariableToken:
+            variable := s.Memory.GetVariable(token.Value)
+            if variable == nil {
+                return nil, fmt.Errorf("undefined variable: %s", token.Value)
+            }
+            stack = append(stack, variable)
+
+        case LiteralToken:
+            variable, err := parseLiteral(token.Value)
+            if err != nil {
+                return nil, err
+            }
+            stack = append(stack, variable)
+
+        case OperatorUnaryMinusToken:
+            if len(stack) < 1 {
+                return nil, fmt.Errorf("insufficient values for unary operation")
+            }
+            a := stack[len(stack)-1]
+            stack = stack[:len(stack)-1]
+            if a.Type != FloatType && a.Type != IntegerType {
+                return nil, fmt.Errorf("unary minus operand is not a number, got %s", a.Type.String())
+            }
+            castA, _ := a.toFloat()
+            stack = append(stack, NewVariable(-castA, FloatType))
+
+        case OperatorAddToken, OperatorSubtractToken, OperatorMultiplyToken, OperatorDivideToken:
+            if len(stack) < 2 {
+                return nil, fmt.Errorf("insufficient values in expression")
+            }
+            b, a := stack[len(stack)-1], stack[len(stack)-2]
+            stack = stack[:len(stack)-2]
+
+            var err error
+            a, b, err = ensureArithmeticOperands(a, b)
+            if err != nil {
+                return nil, err
+            }
+
+            castA, _ := a.toFloat()
+            castB, _ := b.toFloat()
+
+            var result float64
+            switch token.Type {
+            case OperatorAddToken:
+                result = castA + castB
+            case OperatorSubtractToken:
+                result = castA - castB
+            case OperatorMultiplyToken:
+                result = castA * castB
+            case OperatorDivideToken:
+                if castB == 0 {
+                    return nil, fmt.Errorf("division by zero")
+                }
+                result = castA / castB
+            }
+            stack = append(stack, NewVariable(result, FloatType))
+
+        case OperatorModuloToken:
+            if len(stack) < 2 {
+                return nil, fmt.Errorf("insufficient values in expression")
+            }
+            b, a := stack[len(stack)-1], stack[len(stack)-2]
+            stack = stack[:len(stack)-2]
+
+            a, b, err := ensureArithmeticOperands(a, b)
+            if err != nil {
+                return nil, err
+            }
+
+            castA, _ := a.toFloat()
+            castB, _ := b.toFloat()
+
+            stack = append(stack, NewVariable(math.Mod(castA, castB), FloatType))
+
+        case OperatorExponentToken:
+            if len(stack) < 2 {
+                return nil, fmt.Errorf("insufficient values in expression")
+            }
+            b, a := stack[len(stack)-1], stack[len(stack)-2]
+            stack = stack[:len(stack)-2]
+
+            a, b, err := ensureArithmeticOperands(a, b)
+            if err != nil {
+                return nil, err
+            }
+
+            castA, _ := a.toFloat()
+            castB, _ := b.toFloat()
+
+            stack = append(stack, NewVariable(math.Pow(castA, castB), FloatType))
+        }
+    }
+
+    if len(stack) != 1 {
+        return nil, fmt.Errorf("invalid expression")
+    }
+    return stack[0], nil
 }
 
-func (s *Script) parseExpression(exprString string) (*Variable, error) {
+func (s *Script) parseExpression(exprString string) (*Action, error) {
     exprs, err := parseExpression(exprString)
     if err != nil {
         return nil, err
     }
 
-    if len(exprs) == 1 {
-        expr := exprs[0]
+	expressionAction := func(s *Script, args ...interface{}) (interface{}, error) {
+		tokens, err := tokenizeExpression(exprs)
+		if err != nil {
+			return nil, err
+		}
+		rpn := s.toRPN(tokens)
 
-        if isLiteral(expr) {
-            literal, err := parseLiteral(expr)
-            if err != nil {
-                return nil, err
-            }
-            return literal, nil
-        }
+		return s.evaluateRPN(rpn)
+	}
 
-        if isVariable(expr) {
-            variable := s.Memory.GetVariable(expr)
-            if variable == nil {
-                return nil, fmt.Errorf("undefined variable: %s", expr)
-            }
-            return variable, nil
-        }
-
-        return nil, fmt.Errorf("invalid or unrecognized single-token expression: %s", expr)
-    }
-
-    tokens, err := tokenizeExpression(exprs)
-    if err != nil {
-        return nil, err
-    }
-    rpn := s.toRPN(tokens)
-
-    return s.evaluateRPN(rpn)
+	return NewAction(expressionAction, nil), nil
 }

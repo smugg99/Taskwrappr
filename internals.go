@@ -7,6 +7,22 @@ import (
     "time"
 )
 
+func UnpackArgs(args []interface{}) interface{} {
+    values := make([]interface{}, len(args))
+    for i, arg := range args {
+        switch v := arg.(type) {
+        case *Variable:
+            values[i] = v.Value
+        default:
+            values[i] = v
+        }
+    }
+    if len(values) == 1 {
+        return values[0]
+    }
+    return values
+}
+
 func GetInternals() *MemoryMap {
     actions := make(map[string]*Action)
     variables := make(map[string]*Variable)
@@ -99,8 +115,15 @@ func ForActionValidator(s *Script, a *Action) error {
 }
 
 func PrintAction(s *Script, args ...interface{}) (interface{}, error) {
-    fmt.Println(args...)
-    return args, nil
+    values := UnpackArgs(args)
+    
+    if singleValue, ok := values.([]interface{}); ok {
+        fmt.Println(singleValue...)
+    } else {
+        fmt.Println(values)
+    }
+    
+    return values, nil
 }
 
 func WaitAction(s *Script, args ...interface{}) (interface{}, error) {
@@ -119,11 +142,7 @@ func WaitAction(s *Script, args ...interface{}) (interface{}, error) {
 }
 
 func PassAction(s *Script, args ...interface{}) (interface{}, error) {
-    if len(args) == 0 {
-        return false, fmt.Errorf("'pass' action requires at least one argument")
-    }
-
-    return args, nil
+    return UnpackArgs(args), nil
 }
 
 func AndAction(s *Script, args ...interface{}) (interface{}, error) {
