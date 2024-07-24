@@ -3,6 +3,7 @@ package taskwrappr
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -81,6 +82,25 @@ func tokenizeLine(line string) (*Token, error) {
 	return NewToken(InvalidToken, line), fmt.Errorf("invalid line: %s", line)
 }
 
+func ensureArithmeticOperands(a, b *Variable) (*Variable, *Variable, error) {
+    var err error
+    switch a.Type {
+    case IntegerType, FloatType:
+    default:
+        if a, err = castToFloat(a); err != nil {
+            return nil, nil, err
+        }
+    }
+    switch b.Type {
+    case IntegerType, FloatType:
+    default:
+        if b, err = castToFloat(b); err != nil {
+            return nil, nil, err
+        }
+    }
+    return a, b, nil
+}
+
 func (s *Script) parseActionToken(token *Token) (*Action, error) {
 	match := ActionArgumentsPattern.FindStringSubmatch(token.Value)
 	if len(match) != 3 {
@@ -153,53 +173,81 @@ func (s *Script) parseAssignmentToken(token *Token) (*Action, error) {
 }
 
 func (s *Script) parseAugmentedAssignmentToken(token *Token) (*Action, error) {
-	match := AugmentedAssignementPattern.FindStringSubmatch(token.Value)
-	if len(match) != 3 {
-		fmt.Println(match)
-		return nil, fmt.Errorf("invalid augmented assignment format: %s", token.Value)
-	}
+    match := AugmentedAssignementPattern.FindStringSubmatch(token.Value)
+    if len(match) != 4 {
+        return nil, fmt.Errorf("invalid augmented assignment format: %s", token.Value)
+    }
+    varName := match[1]
+    augmentedOperator := match[2]
+    exprString := match[3]
+    
+    variable := s.Memory.GetVariable(varName)
+    if variable == nil {
+        return nil, fmt.Errorf("undefined variable: %s", varName)
+    }
+    
+    parseExprAction, err := s.parseExpression(exprString)
+    if err != nil {
+        return nil, err
+    }
+    
+    assignmentAction := func(s *Script, args ...interface{}) (interface{}, error) {
+        parsedExpr, err := parseExprAction.Execute(s)
+        if err != nil {
+            return nil, err
+        }
+        exprVar, ok := parsedExpr.(*Variable)
+        if !ok {
+            return nil, fmt.Errorf("invalid augmented assignment expression: %s", exprString)
+        }
+        
+        var (
+            result interface{}
+            castA, castB float64
+            castErr error
+        )
+        
+        variable, exprVar, castErr = ensureArithmeticOperands(variable, exprVar)
+        if castErr != nil {
+            return nil, fmt.Errorf("type mismatch in augmented assignment: %v", castErr)
+        }
+        
+        castA, castErr = variable.toFloat()
+        if castErr != nil {
+            return nil, fmt.Errorf("failed to cast %s to float: %v", variable.Type.String(), castErr)
+        }
+        
+        castB, castErr = exprVar.toFloat()
+        if castErr != nil {
+            return nil, fmt.Errorf("failed to cast %s to float: %v", exprVar.Type.String(), castErr)
+        }
 
-	varName := match[1]
-	exprString := match[2]
+        switch augmentedOperator {
+        case AugmentedAdditionString:
+            result = castA + castB
+        case AugmentedSubtractionString:
+            result = castA - castB
+        case AugmentedMultiplicationString:
+            result = castA * castB
+        case AugmentedDivisionString:
+            if castB == 0 {
+                return nil, fmt.Errorf("division by zero")
+            }
+            result = castA / castB
+        case AugmentedModulusString:
+            result = math.Mod(castA, castB)
+        default:
+            return nil, fmt.Errorf("unsupported operator for augmented assignment: %s", augmentedOperator)
+        }
+        
+        variable.Value = result
+        variable.Type = FloatType
 
-	variable := s.Memory.GetVariable(varName)
-	if variable == nil {
-		return nil, fmt.Errorf("undefined variable: %s", varName)
-	}
-
-	parseExprAction, err := s.parseExpression(exprString)
-	if err != nil {
-		return nil, err
-	}
-
-	assignmentAction := func(s *Script, args ...interface{}) (interface{}, error) {
-		parsedExpr, err := parseExprAction.Execute(s)
-		if err != nil {
-			return nil, err
-		}
-
-		exprVar, ok := parsedExpr.(*Variable)
-		if !ok {
-			return nil, fmt.Errorf("invalid augmented assignment expression: %s", exprString)
-		}
-
-		switch exprVar.Type {
-		case IntegerType:
-			variable.Value = variable.Value.(int) + exprVar.Value.(int)
-		case FloatType:
-			variable.Value = variable.Value.(float64) + exprVar.Value.(float64)
-		case StringType:
-			variable.Value = variable.Value.(string) + exprVar.Value.(string)
-		default:
-			return nil, fmt.Errorf("unsupported type for augmented assignment: %s", exprVar.Type)
-		}
-
-		return variable.Value, nil
-	}
-
-	action := NewAction(assignmentAction, nil)
-
-	return action, nil
+        return result, nil
+    }
+    
+    action := NewAction(assignmentAction, nil)
+    return action, nil
 }
 
 func (s *Script) parseContent() (*Block, error) {

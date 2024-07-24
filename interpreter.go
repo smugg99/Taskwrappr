@@ -62,8 +62,24 @@ const (
 )
 
 const (
-	TrueString  = "true"
-	FalseString = "false"
+	TrueString                    = "true"
+	FalseString                   = "false"
+	LogicalAndString              = "&&"
+	LogicalOrString               = "||"
+	LogicalNotString              = "!"
+	EqualityString                = "=="
+	InequalityString              = "!="
+	LessThanString                = "<"
+	LessThanOrEqualString         = "<="
+	GreaterThanString             = ">"
+	GreaterThanOrEqualString      = ">="
+	LogicalXorString              = "^^"
+	AugmentedAdditionString       = string(AdditionSymbol) + string(AssignmentSymbol)
+	AugmentedSubtractionString    = string(SubtractionSymbol) + string(AssignmentSymbol)
+	AugmentedMultiplicationString = string(MultiplicationSymbol) + string(AssignmentSymbol)
+	AugmentedDivisionString       = string(DivisionSymbol) + string(AssignmentSymbol)
+	AugmentedModulusString        = string(ModulusSymbol) + string(AssignmentSymbol)
+	AugmentedExponentString       = string(ExponentSymbol) + string(AssignmentSymbol)
 )
 
 var (
@@ -77,8 +93,8 @@ var (
 	BooleanPattern                = regexp.MustCompile(fmt.Sprintf(`^(%s|%s)$`, TrueString, FalseString))
 	StringPattern                 = regexp.MustCompile(fmt.Sprintf(`^%c.*%c$`, StringSymbol, StringSymbol))
 	AugmentedAssignementPattern   = regexp.MustCompile(fmt.Sprintf(
-		`^\s*(\w+)\s*([\%c\%c\%c\%c\%c]=)\s*(.*)\s*$`,
-		AdditionSymbol, SubtractionSymbol, MultiplicationSymbol, DivisionSymbol, ModulusSymbol,
+		`^\s*(\w+)\s*([\%c\%c\%c\%c\%c]%c)\s*(.*)\s*$`,
+		AdditionSymbol, SubtractionSymbol, MultiplicationSymbol, DivisionSymbol, ModulusSymbol, AssignmentSymbol,
 	))
 )
 
