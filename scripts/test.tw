@@ -11,9 +11,7 @@ print("Hello", balls)
 balls = "other balls"
 print("Hello", balls)
 
-someNiggerVar = 1 + 111
 someOtherIntVar = 11
-print(someIntVar, someNiggerVar)
 someIntVar = 5 + 1 + someOtherIntVar + -(pass(2 + 2) * 2)
 print(someIntVar)
 
