@@ -2,7 +2,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"smuggr.xyz/taskwrappr"
@@ -18,25 +17,6 @@ func main() {
 	memoryMap.Variables["someIntVar"] = taskwrappr.NewVariable(42, taskwrappr.IntegerType)
 	memoryMap.Variables["someFloatVar"] = taskwrappr.NewVariable(3.14, taskwrappr.FloatType)
 	memoryMap.Variables["someNegativeVar"] = taskwrappr.NewVariable(-21.37, taskwrappr.FloatType)
-
-	memoryMap.Actions["navigate"] = taskwrappr.NewAction(func(s *taskwrappr.Script, args ...interface{}) (interface{}, error) {
-		if len(args) < 1 {
-			return nil, fmt.Errorf("navigate action requires at least 1 argument")
-		}
-
-		url := args[0].(string)
-		fmt.Printf("Navigating to: %s\n", url)
-
-		return url, nil
-	}, nil)
-
-	memoryMap.Actions["externalfunction"] = taskwrappr.NewAction(func(s *taskwrappr.Script, args ...interface{}) (interface{}, error) {
-		if len(args) < 1 {
-			return nil, fmt.Errorf("externalfunction action requires at least 1 argument")
-		}
-
-		return args[0], nil
-	}, nil)
 
 	script, err := taskwrappr.NewScript("../scripts/test.tw", memoryMap)
 	if err != nil {

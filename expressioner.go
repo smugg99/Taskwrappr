@@ -280,11 +280,19 @@ func (s *Script) evaluateRPN(rpn []*Token) (*Variable, error) {
             if err != nil {
                 return nil, err
             }
+
             value, err := action.Execute(s)
             if err != nil {
                 return nil, err
             }
-            variable := NewVariable(value, DetermineVariableType(value))
+            
+            if len(value) != 1 {
+                return nil, fmt.Errorf("action returned multiple values: %v", value)
+            }
+
+            firstValue := value[0]
+            variable := NewVariable(firstValue, DetermineVariableType(firstValue))
+
             stack = append(stack, variable)
         case VariableToken:
             variable := s.Memory.GetVariable(token.Value)
@@ -388,14 +396,43 @@ func (s *Script) parseExpression(exprString string) (*Action, error) {
         return nil, err
     }
 
-	expressionAction := func(s *Script, args ...interface{}) (interface{}, error) {
+	expressionAction := func(s *Script, args ...*Variable) ([]*Variable, error) {
 		tokens, err := tokenizeExpression(exprs)
 		if err != nil {
 			return nil, err
 		}
+        
+        if len(tokens) == 1 {
+            switch tokens[0].Type {
+            case ActionToken:
+                action, err := s.parseActionToken(tokens[0])
+                if err != nil {
+                    return nil, err
+                }
+
+                value, err := action.Execute(s)
+                if err != nil {
+                    return nil, err
+                }
+
+                return value, nil
+            case VariableToken:
+                variable := s.Memory.GetVariable(tokens[0].Value)
+                if variable == nil {
+                    return nil, fmt.Errorf("undefined variable: %s", tokens[0].Value)
+                }
+                return []*Variable{variable}, nil
+            }
+        }
+
 		rpn := s.toRPN(tokens)
 
-		return s.evaluateRPN(rpn)
+        result, err := s.evaluateRPN(rpn)
+        if err != nil {
+            return nil, err
+        }
+
+		return []*Variable{result}, nil
 	}
 
 	return NewAction(expressionAction, nil), nil

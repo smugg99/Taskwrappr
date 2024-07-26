@@ -114,10 +114,9 @@ func (s *Script) parseActionToken(token *Token) (*Action, error) {
 	if actionFound == nil {
 		return nil, fmt.Errorf("undefined action: %s", actionName)
 	}
-	action := NewAction(actionFound.ExecuteFunc, actionFound.ValidateFunc)
+	action := CloneAction(actionFound)
 
-	var parsedArgs []interface{}
-
+	var parsedArgs []*Action
 	rawArgs := splitTopLevelArgs(argsString)
 
 	for _, arg := range rawArgs {
@@ -134,7 +133,7 @@ func (s *Script) parseActionToken(token *Token) (*Action, error) {
 		parsedArgs = append(parsedArgs, parsedArg)
 	}
 
-	action.Arguments = parsedArgs
+	action.SetArguments(parsedArgs)
 
 	return action, nil
 }
@@ -148,7 +147,7 @@ func (s *Script) parseAssignmentToken(token *Token) (*Action, error) {
 	varName := match[1]
 	exprString := match[2]
 
-	assignmentAction := func(s *Script, args ...interface{}) (interface{}, error) {
+	assignmentAction := func(s *Script, args ...*Variable) ([]*Variable, error) {
 		parseExprAction, err := s.parseExpression(exprString)
 		if err != nil {
 			return nil, err
@@ -159,14 +158,14 @@ func (s *Script) parseAssignmentToken(token *Token) (*Action, error) {
 			return nil, err
 		}
 
-		exprVar, ok := parsedExpr.(*Variable)
-		if !ok {
-			return nil, fmt.Errorf("invalid assignment expression: %s, %T", exprString, exprVar)
+		if len(parsedExpr) != 1 {
+			return nil, fmt.Errorf("invalid assignment expression: %s", exprString)
 		}
 
+		exprVar := parsedExpr[0]
 		variable := s.Memory.SetVariable(varName, exprVar.Value, exprVar.Type)
 
-		return variable, nil
+		return []*Variable{variable}, nil
 	}
 
 	return NewAction(assignmentAction, nil), nil
@@ -191,22 +190,23 @@ func (s *Script) parseAugmentedAssignmentToken(token *Token) (*Action, error) {
         return nil, err
     }
     
-    assignmentAction := func(s *Script, args ...interface{}) (interface{}, error) {
+    assignmentAction := func(s *Script, args ...*Variable) ([]*Variable, error) {
         parsedExpr, err := parseExprAction.Execute(s)
         if err != nil {
             return nil, err
         }
-        exprVar, ok := parsedExpr.(*Variable)
-        if !ok {
-            return nil, fmt.Errorf("invalid augmented assignment expression: %s", exprString)
-        }
-        
+
+		if len(parsedExpr) != 1 {
+			return nil, fmt.Errorf("invalid assignment expression: %s", exprString)
+		}
+
         var (
             result interface{}
             castA, castB float64
             castErr error
         )
         
+		exprVar := parsedExpr[0]
         variable, exprVar, castErr = ensureArithmeticOperands(variable, exprVar)
         if castErr != nil {
             return nil, fmt.Errorf("type mismatch in augmented assignment: %v", castErr)
@@ -243,7 +243,7 @@ func (s *Script) parseAugmentedAssignmentToken(token *Token) (*Action, error) {
         variable.Value = result
         variable.Type = FloatType
 
-        return result, nil
+        return []*Variable{variable}, nil
     }
     
     action := NewAction(assignmentAction, nil)
@@ -325,15 +325,28 @@ func (s *Script) runBlock(b *Block) error {
 		if err != nil {
 			return err
 		}
-		b.LastResult = result
 
-		if action.Block != nil {
-			if resultBool, ok := result.(bool); ok {
+		var resultVar *Variable
+
+		if len(result) > 0 {
+			resultVar = result[0]
+			b.LastResult = resultVar
+		} else {
+			b.LastResult = nil
+		}
+
+		if action.Block != nil && resultVar != nil {
+			if len(result) != 1 {
+				return fmt.Errorf("invalid result from action: %v", result)
+			}
+			if resultBool, err := resultVar.toBool(); err == nil {
 				if resultBool {
 					if err := s.runBlock(action.Block); err != nil {
 						return err
 					}
 				}
+			} else {
+				return err
 			}
 		}
 	}

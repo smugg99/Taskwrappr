@@ -7,28 +7,9 @@ import (
 	"strconv"
 )
 
-type Action struct {
-    ExecuteFunc  func(s *Script, args ...interface{}) (interface{}, error)
-    Arguments    []interface{}
-    Block        *Block
-    ValidateFunc func(s *Script, a *Action) error
-}
-
 type Variable struct {
 	Value interface{}
     Type  VariableType
-}
-
-type MemoryMap struct {
-	Actions   map[string]*Action
-	Variables map[string]*Variable
-}
-
-type Block struct {
-    Actions    []*Action
-	Executed   bool
-    Memory     *MemoryMap
-	LastResult interface{}
 }
 
 type VariableType int
@@ -38,8 +19,8 @@ const (
 	IntegerType
 	FloatType
 	BooleanType
+	ArrayType
 	NilType
-	DetermineType
 	InvalidType
 )
 
@@ -53,10 +34,10 @@ func (v VariableType) String() string {
         return "float"
     case BooleanType:
         return "boolean"
+	case ArrayType:
+		return "array"
 	case NilType:
 		return "nil"
-	case DetermineType:
-		return "determine"
     default:
         return "invalid"
     }
@@ -83,6 +64,8 @@ func DetermineVariableType(v interface{}) VariableType {
 		return FloatType
 	case reflect.Bool:
 		return BooleanType
+	case reflect.Slice:
+		return ArrayType
 	default:
 		return InvalidType
 	}
@@ -158,7 +141,7 @@ func (v *Variable) toFloat() (float64, error) {
     return 0.0, fmt.Errorf("cannot convert %v to float", v.Type)
 }
 
-func (v *Variable) toBool() (interface{}, error) {
+func (v *Variable) toBool() (bool, error) {
 	switch v.Type {
 	case StringType:
 		if b, err := strconv.ParseBool(v.Value.(string)); err == nil {
@@ -174,102 +157,9 @@ func (v *Variable) toBool() (interface{}, error) {
 		}
 		return value != 0, nil
 	case BooleanType:
-		return v.Value, nil
+		if b, ok := v.Value.(bool); ok {
+			return b, nil
+		}
 	}
-	return nil, fmt.Errorf("cannot convert %v to boolean", v.Type)
-}
-
-func NewMemoryMap() *MemoryMap {
-	return &MemoryMap{
-		Actions:   make(map[string]*Action),
-		Variables: make(map[string]*Variable),
-	}
-}
-
-func (m *MemoryMap) GetAction(name string) *Action {
-	action, ok := m.Actions[name]
-	if !ok {
-		return nil
-	}
-	return action
-}
-
-func (m *MemoryMap) GetVariable(name string) *Variable {
-	variable, ok := m.Variables[name]
-	if !ok {
-		return nil
-	}
-	return variable
-}
-
-func (m *MemoryMap) MakeVariable(name string, value interface{}) *Variable {
-	variable := NewVariable(value, DetermineVariableType(value))
-	m.Variables[name] = variable
-
-	return variable
-}
-
-func (m *MemoryMap) SetVariable(name string, value interface{}, variableType VariableType) *Variable {
-	variable := m.GetVariable(name)
-	if variable == nil {
-		return m.MakeVariable(name, value)
-	}
-
-	if variableType == DetermineType {
-		variableType = DetermineVariableType(value)
-	}
-
-	variable.Value = value
-	variable.Type = variableType
-
-	return variable
-}
-
-func NewBlock() *Block {
-    return &Block{
-        Actions: []*Action{},
-    }
-}
-
-func NewAction(executeFunc func(s *Script, args ...interface{}) (interface{}, error), validateFunc func(s *Script, a *Action) error) *Action {
-    return &Action{
-        ExecuteFunc:  executeFunc,
-        ValidateFunc: validateFunc,
-    }
-}
-
-func (a *Action) ProcessArgs(s *Script) ([]interface{}, error) {
-    processedArgs := make([]interface{}, len(a.Arguments))
-    for i, arg := range a.Arguments {
-        switch v := arg.(type) {
-        case *Action:
-            processedArg, err := v.Execute(s)
-            if err != nil {
-                return nil, err
-            }
-            processedArgs[i] = processedArg
-        case *Variable:
-            processedArgs[i] = v.Value
-        default:
-            processedArgs[i] = arg
-        }
-    }
-    return processedArgs, nil
-}
-
-func (a *Action) Execute(s *Script) (interface{}, error) {
-	processedArgs, err := a.ProcessArgs(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return a.ExecuteFunc(s, processedArgs...)
-}
-
-func (a *Action) Validate(s *Script) (error) {
-    if a.ValidateFunc == nil {
-        return nil
-    }
-
-    return a.ValidateFunc(s, a)
+	return false, fmt.Errorf("cannot convert %v to boolean", v.Type)
 }

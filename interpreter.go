@@ -26,6 +26,8 @@ const (
 const (
 	ParenOpenSymbol      = '('
 	ParenCloseSymbol     = ')'
+	BracketOpenSymbol    = '['
+	BracketCloseSymbol   = ']'
 	DelimiterSymbol      = ','
 	DecimalSymbol        = '.'
 	AdditionSymbol       = '+'

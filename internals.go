@@ -7,37 +7,36 @@ import (
     "time"
 )
 
-func UnpackArgs(args []interface{}) interface{} {
-    values := make([]interface{}, len(args))
-    for i, arg := range args {
-        switch v := arg.(type) {
-        case *Variable:
-            values[i] = v.Value
-        default:
-            values[i] = v
+func printVariable(v *Variable) {
+    switch v.Type {
+    case StringType, IntegerType, FloatType, BooleanType:
+        fmt.Print(v.Value)
+    case ArrayType:
+        array := v.Value.([]*Variable)
+        fmt.Printf("%c", BracketOpenSymbol)
+        for i, elem := range array {
+            printVariable(elem)
+            if i != len(array)-1 {
+                fmt.Printf("%c", SpaceSymbol)
+            }
         }
+        fmt.Printf("%c", BracketCloseSymbol)
+    default:
+        fmt.Printf("unsupported argument type: %v\n", v.Type)
     }
-    if len(values) == 1 {
-        return values[0]
-    }
-    return values
 }
 
 func GetInternals() *MemoryMap {
     actions := make(map[string]*Action)
     variables := make(map[string]*Variable)
 
-    actions["if"] = NewAction(IfAction, IfActionValidator)
-    actions["else"] = NewAction(ElseAction, ElseActionValidator)
-    actions["for"] = NewAction(ForAction, ForActionValidator)
-    actions["print"] = NewAction(PrintAction, nil)
-    actions["wait"] = NewAction(WaitAction, nil)
-    actions["pass"] = NewAction(PassAction, nil)
-    actions["and"] = NewAction(AndAction, nil)
-    actions["or"] = NewAction(OrAction, nil)
-    actions["not"] = NewAction(NotAction, nil)
-    actions["xor"] = NewAction(XorAction, nil)
-    actions["nand"] = NewAction(NandAction, nil)
+    actions["if"]     = NewAction(IfAction, IfActionValidator)
+    actions["elseIf"] = NewAction(ElseIfAction, ElseIfActionValidator)
+    actions["else"]   = NewAction(ElseAction, ElseActionValidator)
+    actions["for"]    = NewAction(ForAction, ForActionValidator)
+    actions["print"]  = NewAction(PrintAction, nil)
+    actions["wait"]   = NewAction(WaitAction, nil)
+    actions["pass"]   = NewAction(PassAction, nil)
 
     return &MemoryMap{
         Actions:   actions,
@@ -45,22 +44,19 @@ func GetInternals() *MemoryMap {
     }
 }
 
-func IfAction(s *Script, args ...interface{}) (interface{}, error) {
-    if len(args) == 0 {
-        return false, fmt.Errorf("'if' action requires exactly one argument")
+func IfAction(s *Script, args ...*Variable) ([]*Variable, error) {
+    if len(args) != 1 {
+        return nil, fmt.Errorf("'if' action requires exactly one argument")
     }
 
-    if len(args) == 1 {
-        switch v := args[0].(type) {
-        case bool:
-            return v, nil
-        case string:
-            return v != "", nil
-        default:
-            return false, fmt.Errorf("unsupported argument type: %T", args[0])
-        }
-    } else {
-        return false, fmt.Errorf("too many arguments for 'if' action")
+    arg := args[0]
+    switch t := arg.Type; t {
+    case BooleanType:
+        return []*Variable{NewVariable(arg.Value, BooleanType)}, nil
+    case StringType:
+        return []*Variable{NewVariable(arg.Value != "", BooleanType)}, nil
+    default:
+        return nil, fmt.Errorf("unsupported argument type: %s", arg.Type)
     }
 }
 
@@ -71,14 +67,60 @@ func IfActionValidator(s *Script, a *Action) error {
     return nil
 }
 
-func ElseAction(s *Script, args ...interface{}) (interface{}, error) {
+func ElseIfAction(s *Script, args ...*Variable) ([]*Variable, error) {
+    if len(args) != 1 {
+        return nil, fmt.Errorf("'else if' action requires exactly one argument")
+    }
+
     if s.CurrentBlock.LastResult != nil {
-        if lastResult, ok := s.CurrentBlock.LastResult.(bool); ok {
-            return !lastResult, nil
+        if lastResult, ok := s.CurrentBlock.LastResult.Value.(bool); ok {
+            if lastResult {
+                return nil, nil
+            } else {
+                switch v := args[0].Value.(type) {
+                case bool:
+                    return []*Variable{NewVariable(v, BooleanType)}, nil
+                case string:
+                    return []*Variable{NewVariable(v != "", BooleanType)}, nil
+                default:
+                    return nil, fmt.Errorf("unsupported argument type: %T", v)
+                }
+            }
         }
     }
 
-    return false, nil
+    return nil, nil
+}
+
+func ElseIfActionValidator(s *Script, a *Action) error {
+    if a.Block == nil {
+        return fmt.Errorf("'else if' action must have a preceding code block")
+    }
+    return nil
+}
+
+func ElseAction(s *Script, args ...*Variable) ([]*Variable, error) {
+    if len(args) == 0 {
+        if s.CurrentBlock.LastResult != nil {
+            if lastResult, ok := s.CurrentBlock.LastResult.Value.(bool); ok {
+                return []*Variable{NewVariable(!lastResult, BooleanType)}, nil
+            }
+        } else {
+            return nil, nil
+        }
+    } else if len(args) == 1 {
+        arg := args[0]
+        switch t := arg.Type; t {
+        case BooleanType:
+            return []*Variable{NewVariable(!arg.Value.(bool), BooleanType)}, nil
+        case StringType:
+            return []*Variable{NewVariable(arg.Value == "", BooleanType)}, nil
+        default:
+            return nil, fmt.Errorf("unsupported argument type: %s", arg)
+        }
+    }
+
+    return nil, fmt.Errorf("too many arguments for 'else' action")
 }
 
 func ElseActionValidator(s *Script, a *Action) error {
@@ -88,23 +130,22 @@ func ElseActionValidator(s *Script, a *Action) error {
     return nil
 }
 
-func ForAction(s *Script, args ...interface{}) (interface{}, error) {
+func ForAction(s *Script, args ...*Variable) ([]*Variable, error) {
     if len(args) == 0 {
-        return false, fmt.Errorf("'for' action requires at least one argument")
+        return nil, fmt.Errorf("'for' action requires at least one argument")
     }
-
     if len(args) == 1 {
-        switch v := args[0].(type) {
+        arg := args[0].Value
+        switch v := arg.(type) {
         case bool:
-            return v, nil
+            return []*Variable{NewVariable(v, BooleanType)}, nil
         case string:
-            return v != "", nil
+            return []*Variable{NewVariable(v != "", BooleanType)}, nil
         default:
-            return false, fmt.Errorf("unsupported argument type: %T", args[0])
+            return nil, fmt.Errorf("unsupported argument type: %T", arg)
         }
-    } else {
-        return false, fmt.Errorf("too many arguments for 'for' action")
     }
+    return nil, fmt.Errorf("too many arguments for 'for' action")
 }
 
 func ForActionValidator(s *Script, a *Action) error {
@@ -114,108 +155,31 @@ func ForActionValidator(s *Script, a *Action) error {
     return nil
 }
 
-func PrintAction(s *Script, args ...interface{}) (interface{}, error) {
-    values := UnpackArgs(args)
-    
-    if singleValue, ok := values.([]interface{}); ok {
-        fmt.Println(singleValue...)
-    } else {
-        fmt.Println(values)
+func PrintAction(s *Script, args ...*Variable) ([]*Variable, error) {
+    for i, arg := range args {
+        printVariable(arg)
+        if i != len(args)-1 {
+            fmt.Print(" ")
+        }
     }
-    
-    return values, nil
+    fmt.Println()
+
+    return nil, nil
 }
 
-func WaitAction(s *Script, args ...interface{}) (interface{}, error) {
+func WaitAction(s *Script, args ...*Variable) ([]*Variable, error) {
     if len(args) < 1 {
         return nil, fmt.Errorf("'wait' action requires at least 1 argument")
     }
-
-    durationStr := fmt.Sprintf("%v", args[0])
+    durationStr := fmt.Sprintf("%v", args[0].Value)
     duration, err := time.ParseDuration(durationStr + "ms")
     if err != nil {
         return nil, err
     }
-
     time.Sleep(duration)
     return nil, nil
 }
 
-func PassAction(s *Script, args ...interface{}) (interface{}, error) {
-    return UnpackArgs(args), nil
-}
-
-func AndAction(s *Script, args ...interface{}) (interface{}, error) {
-    if len(args) == 0 {
-        return false, fmt.Errorf("'and' action requires at least one argument")
-    }
-    for _, arg := range args {
-        if v, ok := arg.(bool); ok {
-            if !v {
-                return false, nil
-            }
-        } else {
-            return false, fmt.Errorf("'and' action only supports boolean arguments")
-        }
-    }
-    return true, nil
-}
-
-func OrAction(s *Script, args ...interface{}) (interface{}, error) {
-    if len(args) == 0 {
-        return false, fmt.Errorf("'or' action requires at least one argument")
-    }
-    for _, arg := range args {
-        if v, ok := arg.(bool); ok {
-            if v {
-                return true, nil
-            }
-        } else {
-            return false, fmt.Errorf("'or' action only supports boolean arguments")
-        }
-    }
-    return false, nil
-}
-
-func NotAction(s *Script, args ...interface{}) (interface{}, error) {
-    if len(args) != 1 {
-        return false, fmt.Errorf("'not' action requires exactly one argument")
-    }
-    if v, ok := args[0].(bool); ok {
-        return !v, nil
-    }
-    return false, fmt.Errorf("'not' action only supports a boolean argument")
-}
-
-func XorAction(s *Script, args ...interface{}) (interface{}, error) {
-    if len(args) < 2 {
-        return false, fmt.Errorf("'xor' action requires at least two arguments")
-    }
-    countTrue := 0
-    for _, arg := range args {
-        if v, ok := arg.(bool); ok {
-            if v {
-                countTrue++
-            }
-        } else {
-            return false, fmt.Errorf("'xor' action only supports boolean arguments")
-        }
-    }
-    return countTrue%2 == 1, nil
-}
-
-func NandAction(s *Script, args ...interface{}) (interface{}, error) {
-    if len(args) == 0 {
-        return false, fmt.Errorf("'nand' action requires at least one argument")
-    }
-    for _, arg := range args {
-        if v, ok := arg.(bool); ok {
-            if !v {
-                return true, nil
-            }
-        } else {
-            return false, fmt.Errorf("'nand' action only supports boolean arguments")
-        }
-    }
-    return false, nil
+func PassAction(s *Script, args ...*Variable) ([]*Variable, error) { 
+    return args, nil
 }
