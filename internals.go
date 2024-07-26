@@ -69,7 +69,7 @@ func IfActionValidator(s *Script, a *Action) error {
 
 func ElseIfAction(s *Script, args ...*Variable) ([]*Variable, error) {
     if len(args) != 1 {
-        return nil, fmt.Errorf("'else if' action requires exactly one argument")
+        return nil, fmt.Errorf("'elseif' action requires exactly one argument")
     }
 
     if s.CurrentBlock.LastResult != nil {
@@ -88,7 +88,7 @@ func ElseIfAction(s *Script, args ...*Variable) ([]*Variable, error) {
             }
         }
     }
-
+    
     return nil, nil
 }
 
