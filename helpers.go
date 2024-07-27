@@ -334,7 +334,7 @@ func (s *Script) runBlock(b *Block) error {
 		} else {
 			b.LastResult = nil
 		}
-
+		
 		if action.Block != nil && resultVar != nil {
 			if len(result) != 1 {
 				return fmt.Errorf("invalid result from action: %v", result)
