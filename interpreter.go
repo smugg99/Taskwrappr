@@ -134,12 +134,12 @@ type Token struct {
 }
 
 type Script struct {
-	Path           string
-	Content        string
-	CleanedContent string
-	Memory 		   *MemoryMap
-	MainBlock	   *Block
-	CurrentBlock   *Block
+    Path         string
+    Content      string
+    CleanedContent string
+    Memory       *MemoryMap
+    MainBlock    *Block
+    CurrentBlock *Block
 }
 
 func (t TokenType) String() string {
@@ -215,34 +215,33 @@ func NewToken(tokenType TokenType, value string) *Token {
 }
 
 func NewScript(filePath string, memory *MemoryMap) (*Script, error) {
-	return &Script{
-		Path:           filePath,
-		Memory:         memory,
-	}, nil
+    mainBlock := NewBlock(memory)
+    return &Script{
+        Path:         filePath,
+        Memory:       memory,
+        MainBlock:    mainBlock,
+        CurrentBlock: mainBlock,
+    }, nil
 }
 
 func (s *Script) Run() (bool, error) {
-	content, err := os.ReadFile(s.Path)
-	if err != nil {
-		return false, err
-	}
-	s.Content = string(content)
-
-	cleanedContent, err := s.normalizeContent()
+    content, err := os.ReadFile(s.Path)
     if err != nil {
         return false, err
-	}
-	s.CleanedContent = cleanedContent
-
-	parsedContent, err := s.parseContent()
-	if err != nil {
-		return false, err
-	}
-	s.MainBlock = parsedContent
-	
-	if err := s.runBlock(s.MainBlock); err != nil {
-		return false, err
-	}
-
+    }
+    s.Content = string(content)
+    cleanedContent, err := s.normalizeContent()
+    if err != nil {
+        return false, err
+    }
+    s.CleanedContent = cleanedContent
+    parsedContent, err := s.parseContent()
+    if err != nil {
+        return false, err
+    }
+    s.MainBlock = parsedContent
+    if err := s.runBlock(s.MainBlock); err != nil {
+        return false, err
+    }
     return true, nil
 }

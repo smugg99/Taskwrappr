@@ -20,24 +20,28 @@
 # someaction() # prints "Hello, world"
 # someaction("Goodbye", "cruel world") # prints "Goodbye, cruel world"
 
-someGlobalVar := 5 # Variable (in this case a global one) declaration
-someGlobalVar = 5 # Variable assignment
+someGlobalVar := 5
+someGlobalVar = 55
+print(someGlobalVar)
 
-if(true) {
-	someLocalVar3 := 10 # Variable (local) declaration
+if(someGlobalVar <= 100) {
+	someLocalVar3 := 10
 	if (true) {
-		someLocalVar1 := 10 # Variable (local) declaration
+		someLocalVar1 := 10
 		print("falsea", someGlobalVar, someLocalVar1)
 	}
 	else() {
-		# print(someLocalVar1) # This should throw an error
+		print(someLocalVar1) # should throw an error
 		someLocalVar2 := 11
 		print("falses")
-		someGlobalVar = 6 # Here we are changing the global variable
+		someGlobalVar = 6
+		delete(someGlobalVar)
 	}
+	print("pepepenis", someLocalVar3)
 }
 
-# print(someLocalVar3) # This should throw an error
+print("penis", someLocalVar3) # should throw an error
+print(someGlobalVar)
 
 if(pass(false) == true) {
 	print("true")

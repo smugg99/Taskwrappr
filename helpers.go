@@ -114,7 +114,7 @@ func (s *Script) parseActionToken(token *Token) (*Action, error) {
 	actionName := match[1]
 	argsString := match[2]
 
-	actionFound := s.Memory.GetAction(actionName)
+	actionFound := s.CurrentBlock.Memory.GetAction(actionName)
 	if actionFound == nil {
 		return nil, fmt.Errorf("undefined action: %s", actionName)
 	}
@@ -167,7 +167,7 @@ func (s *Script) parseAssignmentToken(token *Token) (*Action, error) {
 		}
 
 		exprVar := parsedExpr[0]
-		variable := s.Memory.SetVariable(varName, exprVar.Value, exprVar.Type)
+		variable := s.CurrentBlock.Memory.SetVariable(varName, exprVar.Value, exprVar.Type)
 
 		return []*Variable{variable}, nil
 	}
@@ -176,38 +176,33 @@ func (s *Script) parseAssignmentToken(token *Token) (*Action, error) {
 }
 
 func (s *Script) parseDeclarationToken(token *Token) (*Action, error) {
-	match := DeclarationPattern.FindStringSubmatch(token.Value)
-	if len(match) != 3 {
-		return nil, fmt.Errorf("invalid declaration format: %s", token.Value)
-	}
+    match := DeclarationPattern.FindStringSubmatch(token.Value)
+    if len(match) != 3 {
+        return nil, fmt.Errorf("invalid declaration format: %s", token.Value)
+    }
+    varName := match[1]
+    exprString := match[2]
+    
+    declarationAction := func(s *Script, args ...*Variable) ([]*Variable, error) {
+		s.CurrentBlock.Memory.MakeVariable(varName, nil)
 
-	varName := match[1]
-	exprString := match[2]
+        parseExprAction, err := s.parseExpression(exprString)
+        if err != nil {
+            return nil, err
+        }
+        parsedExpr, err := parseExprAction.Execute(s)
+        if err != nil {
+            return nil, err
+        }
+        if len(parsedExpr) != 1 {
+            return nil, fmt.Errorf("invalid declaration expression: %s", exprString)
+        }
+        exprVar := parsedExpr[0]
+        variable := s.CurrentBlock.Memory.SetVariable(varName, exprVar.Value, exprVar.Type)
+        return []*Variable{variable}, nil
+    }
 
-	s.Memory.MakeVariable(varName, nil)
-
-	declarationAction := func(s *Script, args ...*Variable) ([]*Variable, error) {
-		parseExprAction, err := s.parseExpression(exprString)
-		if err != nil {
-			return nil, err
-		}
-
-		parsedExpr, err := parseExprAction.Execute(s)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(parsedExpr) != 1 {
-			return nil, fmt.Errorf("invalid declaration expression: %s", exprString)
-		}
-
-		exprVar := parsedExpr[0]
-		variable := s.Memory.SetVariable(varName, exprVar.Value, exprVar.Type)
-
-		return []*Variable{variable}, nil
-	}
-
-	return NewAction(declarationAction, nil), nil
+    return NewAction(declarationAction, nil), nil
 }
 
 func (s *Script) parseAugmentedAssignmentToken(token *Token) (*Action, error) {
@@ -219,17 +214,17 @@ func (s *Script) parseAugmentedAssignmentToken(token *Token) (*Action, error) {
 	augmentedOperator := match[2]
 	exprString := match[3]
 	
-	variable := s.Memory.GetVariable(varName)
-	if variable == nil {
-		return nil, fmt.Errorf("undefined variable: %s", varName)
-	}
-
-	parseExprAction, err := s.parseExpression(exprString)
-	if err != nil {
-		return nil, err
-	}
-
 	assignmentAction := func(s *Script, args ...*Variable) ([]*Variable, error) {
+		variable := s.CurrentBlock.Memory.GetVariable(varName)
+		if variable == nil {
+			return nil, fmt.Errorf("undefined variable: %s", varName)
+		}
+
+		parseExprAction, err := s.parseExpression(exprString)
+		if err != nil {
+			return nil, err
+		}
+
 		parsedExpr, err := parseExprAction.Execute(s)
 		if err != nil {
 			return nil, err
@@ -287,83 +282,74 @@ func (s *Script) parseAugmentedAssignmentToken(token *Token) (*Action, error) {
 		return []*Variable{variable}, nil
 	}
 
-	action := NewAction(assignmentAction, nil)
-	return action, nil
+	return NewAction(assignmentAction, nil), nil
 }
 
 func (s *Script) parseContent() (*Block, error) {
-	lines := strings.Split(s.CleanedContent, string(NewLineSymbol))
+    lines := strings.Split(s.CleanedContent, string(NewLineSymbol))
+    blockStack := []*Block{}
+    currentBlock := s.MainBlock // Start with the main block
 
-	blockStack := []*Block{}
-	currentBlock := NewBlock()
-
-	for i := 0; i < len(lines); i++ {
-		line := lines[i]
-		token, err := tokenizeLine(line)
-		if err != nil {
-			return nil, fmt.Errorf("error analyzing line %d: %v", i+1, err)
-		}
-
-		switch token.Type {
-		case ActionToken:
-			action, err := s.parseActionToken(token)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing action on line %d: %v", i+1, err)
-			}
-
-			currentBlock.Actions = append(currentBlock.Actions, action)
-		case AssignmentToken:
-			action, err := s.parseAssignmentToken(token)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing assignment on line %d: %v", i+1, err)
-			}
-
-			currentBlock.Actions = append(currentBlock.Actions, action)
-		case DeclarationToken:
-			action, err := s.parseDeclarationToken(token)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing declaration on line %d: %v", i+1, err)
-			}
-
-			currentBlock.Actions = append(currentBlock.Actions, action)
-		case AugmentedAssignmentToken:
-			action, err := s.parseAugmentedAssignmentToken(token)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing augmented assignment on line %d: %v", i+1, err)
-			}
-
-			currentBlock.Actions = append(currentBlock.Actions, action)
-		case CodeBlockOpenToken:
-			newBlock := NewBlock()
-			blockStack = append(blockStack, currentBlock)
-			currentBlock = newBlock
-		case CodeBlockCloseToken:
-			if len(blockStack) == 0 {
-				return nil, fmt.Errorf("unmatched closing brace on line %d", i+1)
-			}
-
-			completedBlock := currentBlock
-			currentBlock = blockStack[len(blockStack)-1]
-			blockStack = blockStack[:len(blockStack)-1]
-
-			if len(currentBlock.Actions) > 0 {
-				lastAction := currentBlock.Actions[len(currentBlock.Actions)-1]
-				lastAction.Block = completedBlock
-			} else {
-				return nil, fmt.Errorf("code block without g action on line %d", i+1)
-			}
-		}
-	}
-
-	if len(blockStack) > 0 {
-		return nil, fmt.Errorf("unmatched opening brace")
-	}
-
-	return currentBlock, nil
+    for i := 0; i < len(lines); i++ {
+        line := lines[i]
+        token, err := tokenizeLine(line)
+        if err != nil {
+            return nil, fmt.Errorf("error analyzing line %d: %v", i+1, err)
+        }
+        switch token.Type {
+        case ActionToken:
+            action, err := s.parseActionToken(token)
+            if err != nil {
+                return nil, fmt.Errorf("error parsing action on line %d: %v", i+1, err)
+            }
+            currentBlock.Actions = append(currentBlock.Actions, action)
+        case AssignmentToken:
+            action, err := s.parseAssignmentToken(token)
+            if err != nil {
+                return nil, fmt.Errorf("error parsing assignment on line %d: %v", i+1, err)
+            }
+            currentBlock.Actions = append(currentBlock.Actions, action)
+        case DeclarationToken:
+            action, err := s.parseDeclarationToken(token)
+            if err != nil {
+                return nil, fmt.Errorf("error parsing declaration on line %d: %v", i+1, err)
+            }
+            currentBlock.Actions = append(currentBlock.Actions, action)
+        case AugmentedAssignmentToken:
+            action, err := s.parseAugmentedAssignmentToken(token)
+            if err != nil {
+                return nil, fmt.Errorf("error parsing augmented assignment on line %d: %v", i+1, err)
+            }
+            currentBlock.Actions = append(currentBlock.Actions, action)
+        case CodeBlockOpenToken:
+            newBlock := NewBlock(currentBlock.Memory)
+            blockStack = append(blockStack, currentBlock)
+            currentBlock = newBlock
+        case CodeBlockCloseToken:
+            if len(blockStack) == 0 {
+                return nil, fmt.Errorf("unmatched closing brace on line %d", i+1)
+            }
+            completedBlock := currentBlock
+            currentBlock = blockStack[len(blockStack)-1]
+            blockStack = blockStack[:len(blockStack)-1]
+            if len(currentBlock.Actions) > 0 {
+                lastAction := currentBlock.Actions[len(currentBlock.Actions)-1]
+                lastAction.Block = completedBlock
+            } else {
+                return nil, fmt.Errorf("code block without an action on line %d", i+1)
+            }
+        }
+    }
+    if len(blockStack) > 0 {
+        return nil, fmt.Errorf("unmatched opening brace")
+    }
+    return currentBlock, nil
 }
 
 func (s *Script) runBlock(b *Block) error {
+    previousBlock := s.CurrentBlock
     s.CurrentBlock = b
+
     for _, action := range b.Actions {
         if err := action.Validate(s); err != nil {
             return err
@@ -379,21 +365,23 @@ func (s *Script) runBlock(b *Block) error {
         } else {
             b.LastResult = nil
         }
-
-        if action.Block != nil {
-            if resultVar != nil {
-                if resultBool, err := resultVar.toBool(); err == nil {
-                    if resultBool {
-                        if err := s.runBlock(action.Block); err != nil {
-                            return err
-                        }
-                    }
-                } else {
-                    return err
-                }
-            }
+        if action.Block != nil && resultVar != nil {
+            if resultBool, err := resultVar.toBool(); err == nil {
+				if resultBool {
+					if err := s.runBlock(action.Block); err != nil {
+						return err
+					}
+				}
+			} else {
+				return err
+			}
         }
     }
+
+	fmt.Println("Exiting block")
+    s.CurrentBlock.Memory.Clear()
+    s.CurrentBlock = previousBlock
+
     return nil
 }
 

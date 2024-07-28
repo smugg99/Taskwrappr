@@ -32,6 +32,7 @@ func GetInternals() *MemoryMap {
     actions := make(map[string]*Action)
     variables := make(map[string]*Variable)
 
+    actions["delete"] = NewAction(DeleteAction, nil)
     actions["if"]     = NewAction(IfAction, IfActionValidator)
     actions["elseIf"] = NewAction(ElseIfAction, ElseIfActionValidator)
     actions["else"]   = NewAction(ElseAction, ElseActionValidator)
@@ -54,6 +55,25 @@ func GetInternals() *MemoryMap {
         Variables: variables,
     }
 }
+
+func DeleteAction(s *Script, args ...*Variable) ([]*Variable, error) {
+    if len(args) != 1 {
+        return nil, fmt.Errorf("'delete' action requires exactly one argument")
+    }
+
+    arg := args[0]
+    for key, variable := range s.CurrentBlock.Memory.Variables {
+        fmt.Println("Key:", key, "Variable:", variable)
+        if variable == arg {
+            delete(s.CurrentBlock.Memory.Variables, key)
+            fmt.Println("Deleted variable:", key)
+            break
+        }
+    }
+
+    return nil, nil
+}
+
 
 func IfAction(s *Script, args ...*Variable) ([]*Variable, error) {
     if len(args) != 1 {

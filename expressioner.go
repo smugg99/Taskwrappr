@@ -353,7 +353,7 @@ func (s *Script) evaluateRPN(rpn []*Token) (*Variable, error) {
 			}
 			stack = append(stack, value[0])
 		case VariableToken:
-			variable := s.Memory.GetVariable(token.Value)
+			variable := s.CurrentBlock.Memory.GetVariable(token.Value)
 			if variable == nil {
 				return nil, fmt.Errorf("undefined variable: %s", token.Value)
 			}
@@ -544,7 +544,7 @@ func (s *Script) parseExpression(exprString string) (*Action, error) {
 
 				return value, nil
 			case VariableToken:
-				variable := s.Memory.GetVariable(tokens[0].Value)
+				variable := s.CurrentBlock.Memory.GetVariable(tokens[0].Value)
 				if variable == nil {
 					return nil, fmt.Errorf("undefined variable: %s", tokens[0].Value)
 				}

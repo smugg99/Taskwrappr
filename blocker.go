@@ -8,8 +8,10 @@ type Block struct {
 	LastResult *Variable
 }
 
-func NewBlock() *Block {
+func NewBlock(parentMemory *MemoryMap) *Block {
+    mem := NewMemoryMap(parentMemory)
     return &Block{
         Actions: []*Action{},
+        Memory:  mem,
     }
 }
