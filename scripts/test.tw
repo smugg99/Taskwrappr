@@ -5,7 +5,14 @@
 # and continue until the end of the line
 # they are ignored by the interpreter
 
-if(pass(false)) {
+if (true) {
+	print("falsea")
+}
+else() {
+	print("falses")
+}
+
+if(pass(false) == true) {
 	print("true")
 }
 elseIf(false) {
@@ -13,11 +20,6 @@ elseIf(false) {
 }
 else() {
 	print("false")
-	if (pass(true)) {
-		print("true")
-	} else() {
-		print("false")
-	}
 }
 
 # print("ballse")

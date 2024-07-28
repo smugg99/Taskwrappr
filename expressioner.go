@@ -17,6 +17,10 @@ func isOperator(r rune) bool {
 	return strings.ContainsRune(Operators, r)
 }
 
+func isLogicalOperator(s string) bool {
+    return LogicalOperatorsPattern.MatchString(s)
+}
+
 func isOperatorOrParen(r rune) bool {
 	return isOperator(r) || r == ParenOpenSymbol || r == ParenCloseSymbol
 }
@@ -59,6 +63,14 @@ func getPrecedence(token *Token) int {
 		return 3
 	case OperatorExponentToken:
 		return 4
+	case LogicalOrToken, LogicalXorToken:
+		return 0
+	case LogicalAndToken:
+		return 1
+	case LogicalNotToken:
+		return 5
+	case EqualityToken, InequalityToken, LessThanToken, LessThanOrEqualToken, GreaterThanToken, GreaterThanOrEqualToken:
+		return 1
 	}
 	return 0
 }
@@ -120,7 +132,7 @@ func parseExpression(exprString string) ([]string, error) {
     var hasOperatorOrParen bool
     runes := []rune(exprString)
     n, i := len(runes), 0
-    
+
     for i < n {
         switch {
         case unicode.IsDigit(runes[i]) || (runes[i] == SubtractionSymbol && isPotentialNegNumber(runes, i)):
@@ -146,8 +158,13 @@ func parseExpression(exprString string) ([]string, error) {
             i++
         case isOperator(runes[i]):
             hasOperatorOrParen = true
-            elements = append(elements, string(runes[i]))
-            i++
+            if i+1 < n && runes[i] == ExponentSymbol && runes[i+1] == ExponentSymbol {
+                elements = append(elements, string(runes[i:i+2]))
+                i += 2
+            } else {
+                elements = append(elements, string(runes[i]))
+                i++
+            }
         case runes[i] == StringSymbol:
             start := i
             i++
@@ -159,9 +176,20 @@ func parseExpression(exprString string) ([]string, error) {
         case unicode.IsSpace(runes[i]):
             i++
         default:
-            return nil, fmt.Errorf("unknown character in expression: %c", runes[i])
+            start := i
+            for i < n && !unicode.IsDigit(runes[i]) && !unicode.IsLetter(runes[i]) && !unicode.IsSpace(runes[i]) && runes[i] != ParenOpenSymbol && runes[i] != ParenCloseSymbol {
+                i++
+            }
+            opStr := string(runes[start:i])
+            if isLogicalOperator(opStr) {
+                hasOperatorOrParen = true
+                elements = append(elements, opStr)
+            } else {
+                return nil, fmt.Errorf("unknown character in expression: %s", string(runes[start:i]))
+            }
         }
     }
+
     if !hasOperatorOrParen && len(elements) == 1 {
         return elements, nil
     }
@@ -170,25 +198,43 @@ func parseExpression(exprString string) ([]string, error) {
 
 func tokenizeExpression(exprs []string) ([]*Token, error) {
 	var tokens []*Token
-	for i, expr := range exprs {
-		char := []rune(expr)[0]
-		if isAction(expr) {
-			tokens = append(tokens, NewToken(ActionToken, expr))
-		} else if isLiteral(expr) {
-			tokens = append(tokens, NewToken(LiteralToken, expr))
-		} else if isVariable(expr) {
-			tokens = append(tokens, NewToken(VariableToken, expr))
-		} else if isOperator(char) {
-			if char == SubtractionSymbol {
-				if i == 0 || (i > 0 && (tokens[i-1].Type == ParenOpenToken || tokens[i-1].Type == OperatorAddToken || tokens[i-1].Type == OperatorSubtractToken || tokens[i-1].Type == OperatorMultiplyToken || tokens[i-1].Type == OperatorDivideToken || tokens[i-1].Type == OperatorModuloToken || tokens[i-1].Type == OperatorExponentToken)) {
-					tokens = append(tokens, NewToken(OperatorUnaryMinusToken, expr))
-				} else {
-					tokens = append(tokens, NewToken(OperatorSubtractToken, expr))
-				}
-			} else {
+
+	for _, expr := range exprs {
+		switch expr {
+		case LogicalAndString:
+			tokens = append(tokens, NewToken(LogicalAndToken, expr))
+		case LogicalOrString:
+			tokens = append(tokens, NewToken(LogicalOrToken, expr))
+		case LogicalNotString:
+			tokens = append(tokens, NewToken(LogicalNotToken, expr))
+		case LogicalXorString:
+			tokens = append(tokens, NewToken(LogicalXorToken, expr))
+		case EqualityString:
+			tokens = append(tokens, NewToken(EqualityToken, expr))
+		case InequalityString:
+			tokens = append(tokens, NewToken(InequalityToken, expr))
+		case LessThanString:
+			tokens = append(tokens, NewToken(LessThanToken, expr))
+		case LessThanOrEqualString:
+			tokens = append(tokens, NewToken(LessThanOrEqualToken, expr))
+		case GreaterThanString:
+			tokens = append(tokens, NewToken(GreaterThanToken, expr))
+		case GreaterThanOrEqualString:
+			tokens = append(tokens, NewToken(GreaterThanOrEqualToken, expr))
+		default:
+			char := []rune(expr)[0]
+			if isAction(expr) {
+				tokens = append(tokens, NewToken(ActionToken, expr))
+			} else if isLiteral(expr) {
+				tokens = append(tokens, NewToken(LiteralToken, expr))
+			} else if isVariable(expr) {
+				tokens = append(tokens, NewToken(VariableToken, expr))
+			} else if isOperator(char) {
 				switch char {
 				case AdditionSymbol:
 					tokens = append(tokens, NewToken(OperatorAddToken, expr))
+				case SubtractionSymbol:
+					tokens = append(tokens, NewToken(OperatorSubtractToken, expr))
 				case MultiplicationSymbol:
 					tokens = append(tokens, NewToken(OperatorMultiplyToken, expr))
 				case DivisionSymbol:
@@ -198,13 +244,13 @@ func tokenizeExpression(exprs []string) ([]*Token, error) {
 				case ExponentSymbol:
 					tokens = append(tokens, NewToken(OperatorExponentToken, expr))
 				}
+			} else if char == ParenOpenSymbol {
+				tokens = append(tokens, NewToken(ParenOpenToken, expr))
+			} else if char == ParenCloseSymbol {
+				tokens = append(tokens, NewToken(ParenCloseToken, expr))
+			} else {
+				return nil, fmt.Errorf("unknown token found: %s", expr)
 			}
-		} else if char == ParenOpenSymbol {
-			tokens = append(tokens, NewToken(ParenOpenToken, expr))
-		} else if char == ParenCloseSymbol {
-			tokens = append(tokens, NewToken(ParenCloseToken, expr))
-		} else {
-			return nil, fmt.Errorf("unknown token found: %s", expr)
 		}
 	}
 	return tokens, nil
@@ -212,6 +258,14 @@ func tokenizeExpression(exprs []string) ([]*Token, error) {
 
 func ensureCompatibleOperands(a, b *Variable) (*Variable, *Variable, error) {
     var err error
+    if a.Type == NilType || b.Type == NilType {
+        return nil, nil, fmt.Errorf("operands cannot be nil")
+    }
+
+    if a.Type == InvalidType || b.Type == InvalidType {
+        return nil, nil, fmt.Errorf("operands cannot be invalid")
+    }
+
     if a.Type == StringType || b.Type == StringType {
         a.Value, b.Value = fmt.Sprintf("%v", a.Value), fmt.Sprintf("%v", b.Value)
         a.Type, b.Type = StringType, StringType
@@ -237,7 +291,9 @@ func (s *Script) toRPN(tokens []*Token) []*Token {
 		switch token.Type {
 		case VariableToken, ActionToken, LiteralToken:
 			output = append(output, token)
-		case OperatorAddToken, OperatorSubtractToken, OperatorMultiplyToken, OperatorDivideToken, OperatorModuloToken, OperatorUnaryMinusToken, OperatorExponentToken:
+		case OperatorAddToken, OperatorSubtractToken, OperatorMultiplyToken, OperatorDivideToken, OperatorModuloToken, OperatorUnaryMinusToken, OperatorExponentToken,
+			LogicalAndToken, LogicalOrToken, LogicalXorToken, LogicalNotToken, EqualityToken, InequalityToken, LessThanToken,
+			LessThanOrEqualToken, GreaterThanToken, GreaterThanOrEqualToken:
 			for len(operatorStack) > 0 {
 				top := operatorStack[len(operatorStack)-1]
 				if top.Type == ParenOpenToken {
@@ -280,20 +336,14 @@ func (s *Script) evaluateRPN(rpn []*Token) (*Variable, error) {
             if err != nil {
                 return nil, err
             }
-
             value, err := action.Execute(s)
             if err != nil {
                 return nil, err
             }
-            
             if len(value) != 1 {
                 return nil, fmt.Errorf("action returned multiple values: %v", value)
             }
-
-            firstValue := value[0]
-            variable := NewVariable(firstValue, DetermineVariableType(firstValue))
-
-            stack = append(stack, variable)
+            stack = append(stack, value[0])
         case VariableToken:
             variable := s.Memory.GetVariable(token.Value)
             if variable == nil {
@@ -382,6 +432,75 @@ func (s *Script) evaluateRPN(rpn []*Token) (*Variable, error) {
             castA, _ := a.toFloat()
             castB, _ := b.toFloat()
             stack = append(stack, NewVariable(math.Pow(castA, castB), FloatType))
+        case LogicalAndToken, LogicalOrToken, LogicalXorToken:
+            if len(stack) < 2 {
+                return nil, fmt.Errorf("insufficient values for %s", token.Type.String())
+            }
+            b, a := stack[len(stack)-1], stack[len(stack)-2]
+            stack = stack[:len(stack)-2]
+            castA, _ := a.toBool()
+            castB, _ := b.toBool()
+            var result bool
+            switch token.Type {
+            case LogicalAndToken:
+                result = castA && castB
+            case LogicalOrToken:
+                result = castA || castB
+            case LogicalXorToken:
+                result = (castA || castB) && !(castA && castB)
+            }
+            stack = append(stack, NewVariable(result, BooleanType))
+        case LogicalNotToken:
+            if len(stack) < 1 {
+                return nil, fmt.Errorf("insufficient values for %s", token.Type.String())
+            }
+            a := stack[len(stack)-1]
+            stack = stack[:len(stack)-1]
+            castA, _ := a.toBool()
+            stack = append(stack, NewVariable(!castA, BooleanType))
+        case EqualityToken, InequalityToken, LessThanToken, LessThanOrEqualToken, GreaterThanToken, GreaterThanOrEqualToken:
+            if len(stack) < 2 {
+                return nil, fmt.Errorf("insufficient values for %s", token.Type.String())
+            }
+            b, a := stack[len(stack)-1], stack[len(stack)-2]
+            stack = stack[:len(stack)-2]
+            a, b, err := ensureCompatibleOperands(a, b)
+            if err != nil {
+                return nil, err
+            }
+            var result bool
+            if a.Type == StringType && b.Type == StringType {
+                valA := a.Value.(string)
+                valB := b.Value.(string)
+                switch token.Type {
+                case EqualityToken:
+                    result = (valA == valB)
+                case InequalityToken:
+                    result = (valA != valB)
+                }
+            } else if a.Type == FloatType && b.Type == FloatType {
+                valA, _ := a.toFloat()
+                valB, _ := b.toFloat()
+                switch token.Type {
+                case EqualityToken:
+                    result = (valA == valB)
+                case InequalityToken:
+                    result = (valA != valB)
+                case LessThanToken:
+                    result = (valA < valB)
+                case LessThanOrEqualToken:
+                    result = (valA <= valB)
+                case GreaterThanToken:
+                    result = (valA > valB)
+                case GreaterThanOrEqualToken:
+                    result = (valA >= valB)
+                }
+            } else {
+                return nil, fmt.Errorf("type mismatch between %v and %v", a.Type.String(), b.Type.String())
+            }
+            stack = append(stack, NewVariable(result, BooleanType))
+        default:
+            return nil, fmt.Errorf("unknown token type: %v", token.Type)
         }
     }
     if len(stack) != 1 {

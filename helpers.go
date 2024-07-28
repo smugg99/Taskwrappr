@@ -71,6 +71,10 @@ func tokenizeLine(line string) (*Token, error) {
 		return NewToken(AssignmentToken, line), nil
 	}
 
+	if DeclarationPattern.MatchString(line) {
+		return NewToken(DeclarationToken, line), nil
+	}
+
 	if ActionCallPattern.MatchString(line) {
 		return NewToken(ActionToken, line), nil
 	}
@@ -83,22 +87,22 @@ func tokenizeLine(line string) (*Token, error) {
 }
 
 func ensureArithmeticOperands(a, b *Variable) (*Variable, *Variable, error) {
-    var err error
-    switch a.Type {
-    case IntegerType, FloatType:
-    default:
-        if a, err = castToFloat(a); err != nil {
-            return nil, nil, err
-        }
-    }
-    switch b.Type {
-    case IntegerType, FloatType:
-    default:
-        if b, err = castToFloat(b); err != nil {
-            return nil, nil, err
-        }
-    }
-    return a, b, nil
+	var err error
+	switch a.Type {
+	case IntegerType, FloatType:
+	default:
+		if a, err = castToFloat(a); err != nil {
+			return nil, nil, err
+		}
+	}
+	switch b.Type {
+	case IntegerType, FloatType:
+	default:
+		if b, err = castToFloat(b); err != nil {
+			return nil, nil, err
+		}
+	}
+	return a, b, nil
 }
 
 func (s *Script) parseActionToken(token *Token) (*Action, error) {
@@ -129,7 +133,7 @@ func (s *Script) parseActionToken(token *Token) (*Action, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		parsedArgs = append(parsedArgs, parsedArg)
 	}
 
@@ -171,83 +175,120 @@ func (s *Script) parseAssignmentToken(token *Token) (*Action, error) {
 	return NewAction(assignmentAction, nil), nil
 }
 
+func (s *Script) parseDeclarationToken(token *Token) (*Action, error) {
+	match := DeclarationPattern.FindStringSubmatch(token.Value)
+	if len(match) != 3 {
+		return nil, fmt.Errorf("invalid declaration format: %s", token.Value)
+	}
+
+	varName := match[1]
+	exprString := match[2]
+
+	s.Memory.MakeVariable(varName, nil)
+
+	declarationAction := func(s *Script, args ...*Variable) ([]*Variable, error) {
+		parseExprAction, err := s.parseExpression(exprString)
+		if err != nil {
+			return nil, err
+		}
+
+		parsedExpr, err := parseExprAction.Execute(s)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(parsedExpr) != 1 {
+			return nil, fmt.Errorf("invalid declaration expression: %s", exprString)
+		}
+
+		exprVar := parsedExpr[0]
+		variable := s.Memory.SetVariable(varName, exprVar.Value, exprVar.Type)
+
+		return []*Variable{variable}, nil
+	}
+
+	return NewAction(declarationAction, nil), nil
+}
+
 func (s *Script) parseAugmentedAssignmentToken(token *Token) (*Action, error) {
-    match := AugmentedAssignementPattern.FindStringSubmatch(token.Value)
-    if len(match) != 4 {
-        return nil, fmt.Errorf("invalid augmented assignment format: %s", token.Value)
-    }
-    varName := match[1]
-    augmentedOperator := match[2]
-    exprString := match[3]
-    
-    variable := s.Memory.GetVariable(varName)
-    if variable == nil {
-        return nil, fmt.Errorf("undefined variable: %s", varName)
-    }
-    
-    parseExprAction, err := s.parseExpression(exprString)
-    if err != nil {
-        return nil, err
-    }
-    
-    assignmentAction := func(s *Script, args ...*Variable) ([]*Variable, error) {
-        parsedExpr, err := parseExprAction.Execute(s)
-        if err != nil {
-            return nil, err
-        }
+	match := AugmentedAssignementPattern.FindStringSubmatch(token.Value)
+	if len(match) != 4 {
+		return nil, fmt.Errorf("invalid augmented assignment format: %s", token.Value)
+	}
+	varName := match[1]
+	augmentedOperator := match[2]
+	exprString := match[3]
+	
+	variable := s.Memory.GetVariable(varName)
+	if variable == nil {
+		return nil, fmt.Errorf("undefined variable: %s", varName)
+	}
+
+	parseExprAction, err := s.parseExpression(exprString)
+	if err != nil {
+		return nil, err
+	}
+
+	assignmentAction := func(s *Script, args ...*Variable) ([]*Variable, error) {
+		parsedExpr, err := parseExprAction.Execute(s)
+		if err != nil {
+			return nil, err
+		}
 
 		if len(parsedExpr) != 1 {
 			return nil, fmt.Errorf("invalid assignment expression: %s", exprString)
 		}
 
-        var (
-            result interface{}
-            castA, castB float64
-            castErr error
-        )
-        
+		var (
+			result       interface{}
+			castA, castB float64
+			castErr      error
+		)
+
 		exprVar := parsedExpr[0]
-        variable, exprVar, castErr = ensureArithmeticOperands(variable, exprVar)
-        if castErr != nil {
-            return nil, fmt.Errorf("type mismatch in augmented assignment: %v", castErr)
-        }
-        
-        castA, castErr = variable.toFloat()
-        if castErr != nil {
-            return nil, fmt.Errorf("failed to cast %s to float: %v", variable.Type.String(), castErr)
-        }
-        
-        castB, castErr = exprVar.toFloat()
-        if castErr != nil {
-            return nil, fmt.Errorf("failed to cast %s to float: %v", exprVar.Type.String(), castErr)
-        }
+		variable, exprVar, castErr = ensureArithmeticOperands(variable, exprVar)
+		if castErr != nil {
+			return nil, fmt.Errorf("type mismatch in augmented assignment: %v", castErr)
+		}
 
-        switch augmentedOperator {
-        case AugmentedAdditionString:
-            result = castA + castB
-        case AugmentedSubtractionString:
-            result = castA - castB
-        case AugmentedMultiplicationString:
-            result = castA * castB
-        case AugmentedDivisionString:
-            if castB == 0 {
-                return nil, fmt.Errorf("division by zero")
-            }
-            result = castA / castB
-        case AugmentedModulusString:
-            result = math.Mod(castA, castB)
-        default:
-            return nil, fmt.Errorf("unsupported operator for augmented assignment: %s", augmentedOperator)
-        }
-        
-        variable.Value = result
-        variable.Type = FloatType
+		castA, castErr = variable.toFloat()
+		if castErr != nil {
+			return nil, fmt.Errorf("failed to cast %s to float: %v", variable.Type.String(), castErr)
+		}
 
-        return []*Variable{variable}, nil
-    }
-    
-    action := NewAction(assignmentAction, nil)
-    return action, nil
+		castB, castErr = exprVar.toFloat()
+		if castErr != nil {
+			return nil, fmt.Errorf("failed to cast %s to float: %v", exprVar.Type.String(), castErr)
+		}
+
+		switch augmentedOperator {
+		case AugmentedAdditionString:
+			result = castA + castB
+		case AugmentedSubtractionString:
+			result = castA - castB
+		case AugmentedMultiplicationString:
+			result = castA * castB
+		case AugmentedDivisionString:
+			if castB == 0 {
+				return nil, fmt.Errorf("division by zero")
+			}
+			result = castA / castB
+		case AugmentedModulusString:
+			result = math.Mod(castA, castB)
+		case AugmentedExponentString:
+			result = math.Pow(castA, castB)
+		default:
+			return nil, fmt.Errorf("unsupported operator for augmented assignment: %s", augmentedOperator)
+		}
+
+		variable.Value = result
+		variable.Type = FloatType
+
+		return []*Variable{variable}, nil
+	}
+
+	action := NewAction(assignmentAction, nil)
+	return action, nil
 }
 
 func (s *Script) parseContent() (*Block, error) {
@@ -278,6 +319,13 @@ func (s *Script) parseContent() (*Block, error) {
 			}
 
 			currentBlock.Actions = append(currentBlock.Actions, action)
+		case DeclarationToken:
+			action, err := s.parseDeclarationToken(token)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing declaration on line %d: %v", i+1, err)
+			}
+
+			currentBlock.Actions = append(currentBlock.Actions, action)
 		case AugmentedAssignmentToken:
 			action, err := s.parseAugmentedAssignmentToken(token)
 			if err != nil {
@@ -302,7 +350,7 @@ func (s *Script) parseContent() (*Block, error) {
 				lastAction := currentBlock.Actions[len(currentBlock.Actions)-1]
 				lastAction.Block = completedBlock
 			} else {
-				return nil, fmt.Errorf("code block without preceding action on line %d", i+1)
+				return nil, fmt.Errorf("code block without g action on line %d", i+1)
 			}
 		}
 	}
@@ -315,43 +363,38 @@ func (s *Script) parseContent() (*Block, error) {
 }
 
 func (s *Script) runBlock(b *Block) error {
-	s.CurrentBlock = b
-	for _, action := range b.Actions {
-		if err := action.Validate(s); err != nil {
-			return err
-		}
+    s.CurrentBlock = b
+    for _, action := range b.Actions {
+        if err := action.Validate(s); err != nil {
+            return err
+        }
+        result, err := action.Execute(s)
+        if err != nil {
+            return err
+        }
+        var resultVar *Variable
+        if len(result) > 0 {
+            resultVar = result[0]
+            b.LastResult = resultVar
+        } else {
+            b.LastResult = nil
+        }
 
-		result, err := action.Execute(s)
-		if err != nil {
-			return err
-		}
-
-		var resultVar *Variable
-
-		if len(result) > 0 {
-			resultVar = result[0]
-			b.LastResult = resultVar
-		} else {
-			b.LastResult = nil
-		}
-		
-		if action.Block != nil && resultVar != nil {
-			if len(result) != 1 {
-				return fmt.Errorf("invalid result from action: %v", result)
-			}
-			if resultBool, err := resultVar.toBool(); err == nil {
-				if resultBool {
-					if err := s.runBlock(action.Block); err != nil {
-						return err
-					}
-				}
-			} else {
-				return err
-			}
-		}
-	}
-
-	return nil
+        if action.Block != nil {
+            if resultVar != nil {
+                if resultBool, err := resultVar.toBool(); err == nil {
+                    if resultBool {
+                        if err := s.runBlock(action.Block); err != nil {
+                            return err
+                        }
+                    }
+                } else {
+                    return err
+                }
+            }
+        }
+    }
+    return nil
 }
 
 func (s *Script) normalizeContent() (string, error) {

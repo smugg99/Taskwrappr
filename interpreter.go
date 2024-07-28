@@ -37,11 +37,13 @@ const (
 	ModulusSymbol        = '%'
 	ExponentSymbol       = '^'
 	SelfReferenceSymbol  = '~'
+	DeclarationSymbol	 = ':'
 )
 
 const (
 	ActionToken TokenType = iota
 	AssignmentToken
+	DeclarationToken
 	AugmentedAssignmentToken
 	VariableToken
 	LiteralToken
@@ -58,6 +60,16 @@ const (
 	ParenCloseToken
 	DelimiterToken
 	DecimalToken
+	LogicalAndToken
+    LogicalOrToken
+    LogicalNotToken
+    LogicalXorToken
+    EqualityToken
+    InequalityToken
+    LessThanToken
+    LessThanOrEqualToken
+    GreaterThanToken
+    GreaterThanOrEqualToken
 	InvalidToken
 	IgnoreToken
 	NoToken TokenType = InvalidTokenSymbol
@@ -66,16 +78,18 @@ const (
 const (
 	TrueString                    = "true"
 	FalseString                   = "false"
+	NilString                     = "nil"
 	LogicalAndString              = "&&"
 	LogicalOrString               = "||"
 	LogicalNotString              = "!"
+	LogicalXorString              = "^^"
 	EqualityString                = "=="
 	InequalityString              = "!="
 	LessThanString                = "<"
 	LessThanOrEqualString         = "<="
 	GreaterThanString             = ">"
 	GreaterThanOrEqualString      = ">="
-	LogicalXorString              = "^^"
+	DeclarationString             = string(DeclarationSymbol) + string(AssignmentSymbol)
 	AugmentedAdditionString       = string(AdditionSymbol) + string(AssignmentSymbol)
 	AugmentedSubtractionString    = string(SubtractionSymbol) + string(AssignmentSymbol)
 	AugmentedMultiplicationString = string(MultiplicationSymbol) + string(AssignmentSymbol)
@@ -88,6 +102,7 @@ var (
 	ActionCallPattern             = regexp.MustCompile(fmt.Sprintf(`\w+\%c[^%c]*\%c`, ParenOpenSymbol, ParenCloseSymbol, ParenCloseSymbol))
 	ActionArgumentsPattern        = regexp.MustCompile(fmt.Sprintf(`^(\w+)\%c(.*)\%c$`, ParenOpenSymbol, ParenCloseSymbol))
 	AssignmentPattern             = regexp.MustCompile(fmt.Sprintf(`^\s*([a-zA-Z_]\w*)\s*%c\s*(.+)\s*$`, AssignmentSymbol))
+	DeclarationPattern 		      = regexp.MustCompile(fmt.Sprintf(`^\s*([a-zA-Z_]\w*)\s*%s\s*(.+)\s*$`, DeclarationString))
 	LegalNamePattern              = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 	VariableNamePattern           = regexp.MustCompile(fmt.Sprintf(`^[a-zA-Z_][a-zA-Z0-9_]*[^%c]$`, ParenOpenSymbol))
 	IntegerPattern                = regexp.MustCompile(`^-?\d+$`)
@@ -95,8 +110,12 @@ var (
 	BooleanPattern                = regexp.MustCompile(fmt.Sprintf(`^(%s|%s)$`, TrueString, FalseString))
 	StringPattern                 = regexp.MustCompile(fmt.Sprintf(`^%c.*%c$`, StringSymbol, StringSymbol))
 	AugmentedAssignementPattern   = regexp.MustCompile(fmt.Sprintf(
-		`^\s*(\w+)\s*([\%c\%c\%c\%c\%c]%c)\s*(.*)\s*$`,
-		AdditionSymbol, SubtractionSymbol, MultiplicationSymbol, DivisionSymbol, ModulusSymbol, AssignmentSymbol,
+		`^\s*(\w+)\s*([\%c\%c\%c\%c\%c\%c]%c)\s*(.*)\s*$`,
+		AdditionSymbol, SubtractionSymbol, MultiplicationSymbol, DivisionSymbol, ModulusSymbol, ExponentSymbol, AssignmentSymbol,
+	))
+	LogicalOperatorsPattern       = regexp.MustCompile(fmt.Sprintf(
+		`^(%s|%s|%s|%s|%s|%s|%s|%s|%s|%s)$`,
+		EqualityString, InequalityString, LessThanString, LessThanOrEqualString, GreaterThanString, GreaterThanOrEqualString, LogicalAndString, LogicalOrString, LogicalNotString, LogicalXorString,
 	))
 )
 
@@ -133,6 +152,8 @@ func (t TokenType) String() string {
 		return "CodeBlockCloseToken"
 	case AssignmentToken:
 		return "AssignmentToken"
+	case DeclarationToken:
+		return "DeclarationToken"
 	case AugmentedAssignmentToken:
 		return "AugmentedAssignmentToken"
 	case VariableToken:
@@ -157,6 +178,26 @@ func (t TokenType) String() string {
 		return "DelimiterToken"
 	case DecimalToken:
 		return "DecimalToken"
+	case LogicalAndToken:
+        return "LogicalAndToken"
+    case LogicalOrToken:
+        return "LogicalOrToken"
+    case LogicalNotToken:
+        return "LogicalNotToken"
+    case LogicalXorToken:
+        return "LogicalXorToken"
+    case EqualityToken:
+        return "EqualityToken"
+    case InequalityToken:
+        return "InequalityToken"
+    case LessThanToken:
+        return "LessThanToken"
+    case LessThanOrEqualToken:
+        return "LessThanOrEqualToken"
+    case GreaterThanToken:
+        return "GreaterThanToken"
+    case GreaterThanOrEqualToken:
+        return "GreaterThanOrEqualToken"
 	case IgnoreToken:
 		return "IgnoreToken"
 	case NoToken:

@@ -21,6 +21,8 @@ func printVariable(v *Variable) {
             }
         }
         fmt.Printf("%c", BracketCloseSymbol)
+    case NilType:
+        fmt.Print("nil")
     default:
         fmt.Printf("unsupported argument type: %v\n", v.Type)
     }
@@ -37,6 +39,15 @@ func GetInternals() *MemoryMap {
     actions["print"]  = NewAction(PrintAction, nil)
     actions["wait"]   = NewAction(WaitAction, nil)
     actions["pass"]   = NewAction(PassAction, nil)
+    actions["type"]   = NewAction(TypeAction, nil)
+    actions["bool"]   = NewAction(BoolAction, nil)
+    actions["int"]    = NewAction(IntAction, nil)
+    actions["float"]  = NewAction(FloatAction, nil)
+    actions["string"] = NewAction(StringAction, nil)
+
+    variables[TrueString] = NewVariable(true, BooleanType)
+    variables[FalseString] = NewVariable(false, BooleanType)
+    variables[NilString] = NewVariable(nil, NilType)
 
     return &MemoryMap{
         Actions:   actions,
@@ -50,19 +61,22 @@ func IfAction(s *Script, args ...*Variable) ([]*Variable, error) {
     }
 
     arg := args[0]
-    switch t := arg.Type; t {
-    case BooleanType:
-        return []*Variable{NewVariable(arg.Value, BooleanType)}, nil
-    case StringType:
-        return []*Variable{NewVariable(arg.Value != "", BooleanType)}, nil
-    default:
-        return nil, fmt.Errorf("unsupported argument type: %s", arg.Type)
+    if arg.Type != BooleanType {
+        return nil, fmt.Errorf("'if' action requires a boolean argument")
     }
+
+    if arg.Value.(bool) {
+        s.CurrentBlock.LastResult = arg
+        return []*Variable{NewVariable(true, BooleanType)}, nil
+    }
+    s.CurrentBlock.LastResult = NewVariable(false, BooleanType)
+
+    return []*Variable{NewVariable(false, BooleanType)}, nil
 }
 
 func IfActionValidator(s *Script, a *Action) error {
     if a.Block == nil {
-        return fmt.Errorf("'if' action must have a preceding code block")
+        return fmt.Errorf("'if' action must have a sequent code block")
     }
     return nil
 }
@@ -71,56 +85,42 @@ func ElseIfAction(s *Script, args ...*Variable) ([]*Variable, error) {
     if len(args) != 1 {
         return nil, fmt.Errorf("'elseif' action requires exactly one argument")
     }
-
+    arg := args[0]
+    if arg.Type != BooleanType {
+        return nil, fmt.Errorf("'elseif' action requires a boolean argument")
+    }
     if s.CurrentBlock.LastResult != nil {
-        if lastResult, ok := s.CurrentBlock.LastResult.Value.(bool); ok {
-            if lastResult {
-                return nil, nil
-            } else {
-                switch v := args[0].Value.(type) {
-                case bool:
-                    return []*Variable{NewVariable(v, BooleanType)}, nil
-                case string:
-                    return []*Variable{NewVariable(v != "", BooleanType)}, nil
-                default:
-                    return nil, fmt.Errorf("unsupported argument type: %T", v)
-                }
+        if lastResult, ok := s.CurrentBlock.LastResult.Value.(bool); ok && !lastResult {
+            if arg.Value.(bool) {
+                s.CurrentBlock.LastResult = arg
+                return []*Variable{NewVariable(true, BooleanType)}, nil
             }
         }
     }
-    
-    return nil, nil
+    return []*Variable{NewVariable(false, BooleanType)}, nil
 }
 
 func ElseIfActionValidator(s *Script, a *Action) error {
     if a.Block == nil {
-        return fmt.Errorf("'else if' action must have a preceding code block")
+        return fmt.Errorf("'else if' action must have a sequent code block")
     }
     return nil
 }
 
 func ElseAction(s *Script, args ...*Variable) ([]*Variable, error) {
-    if len(args) == 0 {
-        if s.CurrentBlock.LastResult != nil {
-            if lastResult, ok := s.CurrentBlock.LastResult.Value.(bool); ok {
-                return []*Variable{NewVariable(!lastResult, BooleanType)}, nil
-            }
-        } else {
-            return nil, nil
-        }
-    } else if len(args) == 1 {
-        arg := args[0]
-        switch t := arg.Type; t {
-        case BooleanType:
-            return []*Variable{NewVariable(!arg.Value.(bool), BooleanType)}, nil
-        case StringType:
-            return []*Variable{NewVariable(arg.Value == "", BooleanType)}, nil
-        default:
-            return nil, fmt.Errorf("unsupported argument type: %s", arg)
+    if len(args) > 1 {
+        return nil, fmt.Errorf("'else' action requires at most one argument")
+    }
+    
+    if s.CurrentBlock.LastResult != nil {
+        if lastResult, ok := s.CurrentBlock.LastResult.Value.(bool); ok && !lastResult {
+            s.CurrentBlock.LastResult = NewVariable(true, BooleanType)
+            return []*Variable{NewVariable(true, BooleanType)}, nil
         }
     }
+    s.CurrentBlock.LastResult = NewVariable(false, BooleanType)
 
-    return nil, fmt.Errorf("too many arguments for 'else' action")
+    return []*Variable{NewVariable(false, BooleanType)}, nil
 }
 
 func ElseActionValidator(s *Script, a *Action) error {
@@ -182,4 +182,68 @@ func WaitAction(s *Script, args ...*Variable) ([]*Variable, error) {
 
 func PassAction(s *Script, args ...*Variable) ([]*Variable, error) { 
     return args, nil
+}
+
+func TypeAction(s *Script, args ...*Variable) ([]*Variable, error) { 
+    if len(args) < 1 {
+        return nil, fmt.Errorf("'type' action requires exactly 1 argument")
+    }
+
+    return []*Variable{NewVariable(args[0].Type.String(), StringType)}, nil
+}
+
+func BoolAction(s *Script, args ...*Variable) ([]*Variable, error) { 
+    if len(args) < 1 {
+        return nil, fmt.Errorf("'bool' action requires exactly 1 argument")
+    }
+
+    arg := args[0]
+    value, err := arg.toBool() 
+    if err != nil {
+        return nil, err
+    }
+
+    return []*Variable{NewVariable(value, BooleanType)}, nil
+}
+
+func IntAction(s *Script, args ...*Variable) ([]*Variable, error) { 
+    if len(args) < 1 {
+        return nil, fmt.Errorf("'int' action requires exactly 1 argument")
+    }
+
+    arg := args[0]
+    value, err := arg.toInt() 
+    if err != nil {
+        return nil, err
+    }
+
+    return []*Variable{NewVariable(value, IntegerType)}, nil
+}
+
+func FloatAction(s *Script, args ...*Variable) ([]*Variable, error) { 
+    if len(args) < 1 {
+        return nil, fmt.Errorf("'float' action requires exactly 1 argument")
+    }
+
+    arg := args[0]
+    value, err := arg.toFloat() 
+    if err != nil {
+        return nil, err
+    }
+
+    return []*Variable{NewVariable(value, FloatType)}, nil
+}
+
+func StringAction(s *Script, args ...*Variable) ([]*Variable, error) { 
+    if len(args) < 1 {
+        return nil, fmt.Errorf("'string' action requires exactly 1 argument")
+    }
+
+    arg := args[0]
+    value, err := arg.toString()
+    if err != nil {
+        return nil, err
+    }
+
+    return []*Variable{NewVariable(value, StringType)}, nil
 }

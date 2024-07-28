@@ -5,8 +5,14 @@
 - [X] Inline action calls
 - [X] String concatenation
 - [X] Augmented assignments
+- [ ] Change the way od declaring variables
 - [ ] Boolean expressions
+- [ ] Add non-global scope
+- [ ] Make so ElseIf action validation function also checks for preceding block
 - [ ] Variable ActionType type
+- [ ] Different variations of print actions
+- [ ] Proper parsing of terminated chars
+- [ ] Choose action (ternary substitute)
 - [ ] Constant folding
 - [ ] For loop
 - [ ] Defer action
