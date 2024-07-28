@@ -37,10 +37,8 @@ if(someGlobalVar <= 100) {
 		someGlobalVar = 6
 		delete(someGlobalVar)
 	}
-	print("pepepenis", someLocalVar3)
 }
 
-print("penis", someLocalVar3) # should throw an error
 print(someGlobalVar)
 
 if(pass(false) == true) {
