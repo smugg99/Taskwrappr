@@ -5,8 +5,8 @@
 - [X] Inline action calls
 - [X] String concatenation
 - [X] Augmented assignments
-- [ ] Change the way od declaring variables
-- [ ] Boolean expressions
+- [X] Change the way od declaring variables
+- [X] Boolean expressions
 - [ ] Add non-global scope
 - [ ] Make so ElseIf action validation function also checks for preceding block
 - [ ] Variable ActionType type
@@ -16,4 +16,4 @@
 - [ ] Constant folding
 - [ ] For loop
 - [ ] Defer action
-- [ ] Actions with assignment operations as arguments
+- [ ] Actions (functions) declaration with assignment operations as arguments

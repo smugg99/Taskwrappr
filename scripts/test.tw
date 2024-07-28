@@ -5,12 +5,39 @@
 # and continue until the end of the line
 # they are ignored by the interpreter
 
-if (true) {
-	print("falsea")
+# Actions not yet implemented
+# someaction := action(greeting, name) {
+# 	print(greeting + ", " + name)
+# }
+
+# addAction := action(a := 1, b := 2) {
+# 	return a + b
+# }
+
+# print(addAction()) # prints 3
+# print(addAction(3, 4)) # prints 7
+
+# someaction() # prints "Hello, world"
+# someaction("Goodbye", "cruel world") # prints "Goodbye, cruel world"
+
+someGlobalVar := 5 # Variable (in this case a global one) declaration
+someGlobalVar = 5 # Variable assignment
+
+if(true) {
+	someLocalVar3 := 10 # Variable (local) declaration
+	if (true) {
+		someLocalVar1 := 10 # Variable (local) declaration
+		print("falsea", someGlobalVar, someLocalVar1)
+	}
+	else() {
+		# print(someLocalVar1) # This should throw an error
+		someLocalVar2 := 11
+		print("falses")
+		someGlobalVar = 6 # Here we are changing the global variable
+	}
 }
-else() {
-	print("falses")
-}
+
+# print(someLocalVar3) # This should throw an error
 
 if(pass(false) == true) {
 	print("true")
@@ -22,17 +49,18 @@ else() {
 	print("false")
 }
 
-# print("ballse")
-# balls = pass("balls")
-# print("Hello", balls)
-# balls = "other balls"
-# print("Hello", balls)
+print("ballse")
+balls := pass("balls")
+print("Hello", balls)
+balls = "other balls"
+print("Hello", balls)
 
-# someOtherIntVar = 11
-# someIntVar = 5 + 1 + someOtherIntVar + -(pass(2 + 2) * 2)
-# print(someIntVar)
+someOtherIntVar = 11
+print(someOtherIntVar)
+someIntVar = 5 + 1 + someOtherIntVar + -(pass(2 + 2) * 2)
+print(someIntVar)
 
-# oldIntVar = someIntVar
+# oldIntVar := someIntVar
 # print("Some var", someIntVar)
 # someIntVar += 11
 # someIntVar -= 10
@@ -42,7 +70,7 @@ else() {
 
 # print(pass(pass(2, 11), 2), pass(2))
 
-# print(1 + pass(1 + 2 + pass(pass(5 + 1) + 11) + 2 - 2.2 + 1.5) + -someIntVar + someIntVar / (--123 * (-56.26 - 56.25)) - -1)
+# print(1 + pass(1 + 2 + pass(pass(5 + 1) + 11) + 2 - 2.2 + 1.5) + (someIntVar * -1) + someIntVar / (-123 * (-56.26 - 56.25)) - -1)
 # print(5.2 % 3)
 # print(3 + 5 * 2^2)
 # print(1.0)
@@ -56,5 +84,3 @@ else() {
 # print((6 + 2 * 3) / 4)
 # print((7 + 8) / (2 * 3))
 # print(-5 + 2 - (-3))
-
-#print(pass(someNotCastableVar + someCastableVar + 2 + someIntVar + pass(pass(11)))) # Test
