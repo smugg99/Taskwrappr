@@ -41,7 +41,8 @@ const (
 )
 
 const (
-	ActionToken TokenType = iota
+	InvalidToken TokenType = iota
+	ActionToken
 	AssignmentToken
 	DeclarationToken
 	AugmentedAssignmentToken
@@ -70,9 +71,7 @@ const (
     LessThanOrEqualToken
     GreaterThanToken
     GreaterThanOrEqualToken
-	InvalidToken
 	IgnoreToken
-	NoToken TokenType = InvalidTokenSymbol
 )
 
 const (
@@ -103,7 +102,6 @@ var (
 	ActionArgumentsPattern        = regexp.MustCompile(fmt.Sprintf(`^(\w+)\%c(.*)\%c$`, ParenOpenSymbol, ParenCloseSymbol))
 	AssignmentPattern             = regexp.MustCompile(fmt.Sprintf(`^\s*([a-zA-Z_]\w*)\s*%c\s*(.+)\s*$`, AssignmentSymbol))
 	DeclarationPattern 		      = regexp.MustCompile(fmt.Sprintf(`^\s*([a-zA-Z_]\w*)\s*%s\s*(.+)\s*$`, DeclarationString))
-	LegalNamePattern              = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 	VariableNamePattern           = regexp.MustCompile(fmt.Sprintf(`^[a-zA-Z_][a-zA-Z0-9_]*[^%c]$`, ParenOpenSymbol))
 	IntegerPattern                = regexp.MustCompile(`^-?\d+$`)
 	FloatPattern                  = regexp.MustCompile(`^-?\d*\.\d+$`)
@@ -136,8 +134,6 @@ type Token struct {
 type Script struct {
     Path         string
     Content      string
-    CleanedContent string
-    Memory       *MemoryMap
     MainBlock    *Block
     CurrentBlock *Block
 }
@@ -200,8 +196,6 @@ func (t TokenType) String() string {
         return "GreaterThanOrEqualToken"
 	case IgnoreToken:
 		return "IgnoreToken"
-	case NoToken:
-		return "NoToken"
 	default:
 		return "InvalidToken"
 	}
@@ -218,30 +212,32 @@ func NewScript(filePath string, memory *MemoryMap) (*Script, error) {
     mainBlock := NewBlock(memory)
     return &Script{
         Path:         filePath,
-        Memory:       memory,
         MainBlock:    mainBlock,
         CurrentBlock: mainBlock,
     }, nil
 }
 
-func (s *Script) Run() (bool, error) {
+func (s *Script) Run() error {
     content, err := os.ReadFile(s.Path)
     if err != nil {
-        return false, err
+        return err
     }
-    s.Content = string(content)
-    cleanedContent, err := s.normalizeContent()
+
+    cleanedContent, err := normalizeContent(string(content))
     if err != nil {
-        return false, err
+        return err
     }
-    s.CleanedContent = cleanedContent
-    parsedContent, err := s.parseContent()
+    s.Content = cleanedContent
+
+    mainBlock, err := s.parseContent()
     if err != nil {
-        return false, err
+        return err
     }
-    s.MainBlock = parsedContent
+    s.MainBlock = mainBlock
+
     if err := s.runBlock(s.MainBlock); err != nil {
-        return false, err
+        return err
     }
-    return true, nil
+
+    return nil
 }

@@ -23,10 +23,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	success, err := script.Run()
-	if err != nil {
+	if err := script.Run(); err != nil {
 		log.Fatal(err)
 	}
 
-	log.Printf("script execution finished with status: %v\n", success)
+	log.Println("script execution finished")
 }

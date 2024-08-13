@@ -286,7 +286,7 @@ func (s *Script) parseAugmentedAssignmentToken(token *Token) (*Action, error) {
 }
 
 func (s *Script) parseContent() (*Block, error) {
-    lines := strings.Split(s.CleanedContent, string(NewLineSymbol))
+    lines := strings.Split(s.Content, string(NewLineSymbol))
     blockStack := []*Block{}
     currentBlock := s.MainBlock // Start with the main block
 
@@ -385,11 +385,11 @@ func (s *Script) runBlock(b *Block) error {
     return nil
 }
 
-func (s *Script) normalizeContent() (string, error) {
+func normalizeContent(content string) (string, error) {
 	var result strings.Builder
 	inQuotes := false
 	escaped := false
-	lines := strings.Split(s.Content, string(NewLineSymbol))
+	lines := strings.Split(content, string(NewLineSymbol))
 	openCurlyCount := 0
 	openParenCount := 0
 

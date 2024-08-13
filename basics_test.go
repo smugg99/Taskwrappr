@@ -15,8 +15,7 @@ func TestConditionals(t *testing.T) {
 
     // mw := io.MultiWriter(os.Stdout, &buf)
 
-	_, err = s.Run()
-	if err != nil {
+	if err := s.Run(); err != nil {
 		t.Errorf("run returned an error: %s", err)
 	}
 
