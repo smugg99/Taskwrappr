@@ -1,4 +1,4 @@
-// blocker.go
+// structure.go
 package taskwrappr
 
 type Block struct {

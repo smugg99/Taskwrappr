@@ -1,4 +1,4 @@
-// memorer.go
+// memory.go
 package taskwrappr
 
 type MemoryMap struct {

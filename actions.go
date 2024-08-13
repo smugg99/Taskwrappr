@@ -1,4 +1,4 @@
-// actioner.go
+// actions.go
 package taskwrappr
 
 type Action struct {

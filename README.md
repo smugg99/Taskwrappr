@@ -5,9 +5,10 @@
 - [X] Inline action calls
 - [X] String concatenation
 - [X] Augmented assignments
-- [X] Change the way od declaring variables
+- [X] Change the way of declaring variables
 - [X] Boolean expressions
-- [ ] Add non-global scope
+- [X] Add non-global scope
+- [ ] Separate the Script struct into more structs
 - [ ] Make so ElseIf action validation function also checks for preceding block
 - [ ] Variable ActionType type
 - [ ] Different variations of print actions
@@ -17,3 +18,6 @@
 - [ ] For loop
 - [ ] Defer action
 - [ ] Actions (functions) declaration with assignment operations as arguments
+- [ ] Return action
+- [ ] Try-Catch actions
+- [ ] Simple coroutine implementation

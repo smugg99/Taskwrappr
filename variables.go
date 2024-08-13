@@ -1,4 +1,4 @@
-// structurer.go
+// variables.go
 package taskwrappr
 
 import (

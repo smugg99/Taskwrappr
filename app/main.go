@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	memoryMap := taskwrappr.GetInternals()
+	memoryMap := taskwrappr.GetBuiltIn()
 
 	memoryMap.Variables["someStringVar"] = taskwrappr.NewVariable("dupa", taskwrappr.StringType)
 	memoryMap.Variables["someCastableVar"] = taskwrappr.NewVariable("-6.9", taskwrappr.StringType)

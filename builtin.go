@@ -1,4 +1,4 @@
-// internals.go
+// builtin.go
 
 package taskwrappr
 
@@ -28,7 +28,7 @@ func printVariable(v *Variable) {
     }
 }
 
-func GetInternals() *MemoryMap {
+func GetBuiltIn() *MemoryMap {
     actions := make(map[string]*Action)
     variables := make(map[string]*Variable)
 
