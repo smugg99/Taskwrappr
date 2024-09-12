@@ -2,30 +2,37 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"os"
+	"time"
 
 	"smuggr.xyz/taskwrappr"
 )
 
 func main() {
-	memoryMap := taskwrappr.GetBuiltIn()
-
-	memoryMap.Variables["someStringVar"] = taskwrappr.NewVariable("dupa", taskwrappr.StringType)
-	memoryMap.Variables["someCastableVar"] = taskwrappr.NewVariable("-6.9", taskwrappr.StringType)
-	memoryMap.Variables["someNotCastableVar"] = taskwrappr.NewVariable("duppa", taskwrappr.StringType)
-	memoryMap.Variables["someBoolVar"] = taskwrappr.NewVariable(true, taskwrappr.BooleanType)
-	memoryMap.Variables["someIntVar"] = taskwrappr.NewVariable(42, taskwrappr.IntegerType)
-	memoryMap.Variables["someFloatVar"] = taskwrappr.NewVariable(3.14, taskwrappr.FloatType)
-	memoryMap.Variables["someNegativeVar"] = taskwrappr.NewVariable(-21.37, taskwrappr.FloatType)
-
-	script, err := taskwrappr.NewScript("../scripts/test.tw", memoryMap)
+	script, err := os.ReadFile("../scripts/tests.tw")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("error reading script file:", err)
+		return
 	}
 
-	if err := script.Run(); err != nil {
-		log.Fatal(err)
+	tokenizer := taskwrappr.NewTokenizer(string(script))
+	startTime := time.Now()
+	tokens, err := tokenizer.Tokenize()
+	defer func() {
+		if err != nil || len(tokens) == 0 {
+			return
+		}
+		endTime := time.Since(startTime)
+		fmt.Println("Tokenize time:", endTime, "per token:", endTime / time.Duration(len(tokens)), "tokens:", len(tokens), "per line:", endTime / time.Duration(tokenizer.Line), "lines:", tokenizer.Line)
+	}()
+
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 
-	log.Println("script execution finished")
+	for _, token := range tokens {
+		fmt.Println(token)
+	}
 }

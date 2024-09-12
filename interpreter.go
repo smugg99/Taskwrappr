@@ -1,28 +1,15 @@
 // interpreter.go
 package taskwrappr
 
-import (
-	"fmt"
-	"regexp"
-)
-
-type TokenType    int
-
 const (
 	NewLineSymbol        = '\n'
-	TabSymbol		     = '\t'
-	ReturnSymbol         = '\r'
-	EscapeSymbol		 = '\\'
-	StringSymbol         = '"'
-	SpaceSymbol          = ' '
-	CommentSymbol        = '#'
+	EscapeSymbol         = '\\'
+	SemicolonSymbol      = ';'
+	QuoteSymbol          = '"'
 	CodeBlockOpenSymbol  = '{'
 	CodeBlockCloseSymbol = '}'
 	AssignmentSymbol     = '='
-	InvalidTokenSymbol   = -1
-)
-
-const (
+	UnderscoreSymbol     = '_'
 	ParenOpenSymbol      = '('
 	ParenCloseSymbol     = ')'
 	BracketOpenSymbol    = '['
@@ -36,41 +23,8 @@ const (
 	ModulusSymbol        = '%'
 	ExponentSymbol       = '^'
 	SelfReferenceSymbol  = '~'
-	DeclarationSymbol	 = ':'
-)
-
-const (
-	InvalidToken TokenType = iota
-	ActionToken
-	AssignmentToken
-	DeclarationToken
-	AugmentedAssignmentToken
-	VariableToken
-	LiteralToken
-	CodeBlockOpenToken
-	CodeBlockCloseToken
-	OperatorAddToken
-	OperatorSubtractToken
-	OperatorUnaryMinusToken
-	OperatorExponentToken
-	OperatorMultiplyToken
-	OperatorDivideToken
-	OperatorModuloToken
-	ParenOpenToken
-	ParenCloseToken
-	DelimiterToken
-	DecimalToken
-	LogicalAndToken
-    LogicalOrToken
-    LogicalNotToken
-    LogicalXorToken
-    EqualityToken
-    InequalityToken
-    LessThanToken
-    LessThanOrEqualToken
-    GreaterThanToken
-    GreaterThanOrEqualToken
-	IgnoreToken
+	DeclarationSymbol    = ':'
+	CommentSymbol        = '#'
 )
 
 const (
@@ -96,31 +50,76 @@ const (
 	AugmentedExponentString       = string(ExponentSymbol) + string(AssignmentSymbol)
 )
 
-var (
-	ActionCallPattern             = regexp.MustCompile(fmt.Sprintf(`\w+\%c[^%c]*\%c`, ParenOpenSymbol, ParenCloseSymbol, ParenCloseSymbol))
-	ActionArgumentsPattern        = regexp.MustCompile(fmt.Sprintf(`^(\w+)\%c(.*)\%c$`, ParenOpenSymbol, ParenCloseSymbol))
-	AssignmentPattern             = regexp.MustCompile(fmt.Sprintf(`^\s*([a-zA-Z_]\w*)\s*%c\s*(.+)\s*$`, AssignmentSymbol))
-	DeclarationPattern 		      = regexp.MustCompile(fmt.Sprintf(`^\s*([a-zA-Z_]\w*)\s*%s\s*(.+)\s*$`, DeclarationString))
-	VariableNamePattern           = regexp.MustCompile(fmt.Sprintf(`^[a-zA-Z_][a-zA-Z0-9_]*[^%c]$`, ParenOpenSymbol))
-	IntegerPattern                = regexp.MustCompile(`^-?\d+$`)
-	FloatPattern                  = regexp.MustCompile(`^-?\d*\.\d+$`)
-	BooleanPattern                = regexp.MustCompile(fmt.Sprintf(`^(%s|%s)$`, TrueString, FalseString))
-	StringPattern                 = regexp.MustCompile(fmt.Sprintf(`^%c.*%c$`, StringSymbol, StringSymbol))
-	AugmentedAssignementPattern   = regexp.MustCompile(fmt.Sprintf(
-		`^\s*(\w+)\s*([\%c\%c\%c\%c\%c\%c]%c)\s*(.*)\s*$`,
-		AdditionSymbol, SubtractionSymbol, MultiplicationSymbol, DivisionSymbol, ModulusSymbol, ExponentSymbol, AssignmentSymbol,
-	))
-	LogicalOperatorsPattern       = regexp.MustCompile(fmt.Sprintf(
-		`^(%s|%s|%s|%s|%s|%s|%s|%s|%s|%s)$`,
-		EqualityString, InequalityString, LessThanString, LessThanOrEqualString, GreaterThanString, GreaterThanOrEqualString, LogicalAndString, LogicalOrString, LogicalNotString, LogicalXorString,
-	))
-)
-
-var Operators = string([]rune{
-	AdditionSymbol,
-	SubtractionSymbol,
-	MultiplicationSymbol,
-	DivisionSymbol,
-	ModulusSymbol,
-	ExponentSymbol,
+var Separators = string([]rune{
+	SemicolonSymbol,
+	NewLineSymbol,
 })
+
+var ArithmeticOperators = []string{
+	string(AdditionSymbol),
+	string(SubtractionSymbol),
+	string(MultiplicationSymbol),
+	string(DivisionSymbol),
+	string(ModulusSymbol),
+	string(ExponentSymbol),
+}
+
+var AugmentedOperators = []string{
+	AugmentedAdditionString,
+	AugmentedSubtractionString,
+	AugmentedMultiplicationString,
+	AugmentedDivisionString,
+	AugmentedModulusString,
+	AugmentedExponentString,
+}
+
+var ComparisonOperators = []string{
+	EqualityString,
+	InequalityString,
+	LessThanString,
+	LessThanOrEqualString,
+	GreaterThanString,
+	GreaterThanOrEqualString,
+}
+
+var LogicalOperators = []string{
+	LogicalAndString,
+	LogicalOrString,
+	LogicalNotString,
+	LogicalXorString,
+}
+
+var AssignmentOperators = []string{
+	string(AssignmentSymbol),
+	string(DecimalSymbol),
+	DeclarationString,
+}
+
+var ReservedVariableNames = []string{
+	TrueString,
+	FalseString,
+	NilString,
+}
+
+var ReservedVariablesTypes = map[string]LiteralType{
+	TrueString:  TypeBool,
+	FalseString: TypeBool,
+	NilString:   TypeNil,
+}
+
+// Adjust this value if you add more operators
+var MaxOperatorLength = 4
+
+/*
+Operators can only consist of symbols that are not letters
+or digits so they can be easily distinguished from identifiers
+*/
+var Operators = append(
+		append(
+			append(
+				append(
+					ArithmeticOperators, AugmentedOperators...,
+				), ComparisonOperators...,
+			), LogicalOperators...,
+		), AssignmentOperators...,
+	)
