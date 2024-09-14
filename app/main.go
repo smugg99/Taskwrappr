@@ -23,8 +23,20 @@ func main() {
 		if err != nil || len(tokens) == 0 {
 			return
 		}
+
 		endTime := time.Since(startTime)
-		fmt.Println("Tokenize time:", endTime, "per token:", endTime / time.Duration(len(tokens)), "tokens:", len(tokens), "per line:", endTime / time.Duration(tokenizer.Line), "lines:", tokenizer.Line)
+		tokenCount := len(tokens)
+		lineCount := tokenizer.Line
+
+		endTimeMs := float64(endTime) / float64(time.Millisecond)
+		perTokenMs := endTimeMs / float64(tokenCount)
+		perLineMs := endTimeMs / float64(lineCount)
+
+		fmt.Printf("Tokenize time: %.3fms\n", endTimeMs)
+		fmt.Printf("Tokens: %d\n", tokenCount)
+		fmt.Printf("Lines: %d\n", lineCount)
+		fmt.Printf("Time per token: %.3fms\n", perTokenMs)
+		fmt.Printf("Time per line: %.3fms\n", perLineMs)
 	}()
 
 	if err != nil {
