@@ -9,12 +9,12 @@ import (
 )
 
 type Tokenizer struct {
-	Source    string // the source code to tokenize
-	Index     uint   // the current index in the source code
-	Line      uint   // the current line number
-	Rune      rune   // the current rune being processed
-	InString  bool   // whether the tokenizer is currently processing a string
-	InComment bool   // whether the tokenizer is currently processing a comment
+	Source    string // Source code to tokenize
+	Index     uint   // Current index in the source code
+	Line      uint   // Current line number
+	Rune      rune   // Current rune being processed
+	InString  bool   // Whether the tokenizer is currently processing a string
+	InComment bool   // Whether the tokenizer is currently processing a comment
 }
 
 func (t *Tokenizer) String() string {

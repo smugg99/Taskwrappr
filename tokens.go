@@ -8,15 +8,50 @@ type TokenKind int
 
 const (
 	TokenUndefined                     TokenKind = iota
-	TokenEOF                           // end of file
-	TokenIdentifier                    // e.g. foo, bar, someVar, someAction
-	TokenOperation                     // e.g. +, :=, =, +=, &&, ||, !, ^^, ==, !=, <, <=, >, >=, ()
-	TokenLiteral                       // e.g. nil, true, 1, 2.3, -3.14, 3, "foo", "bar", "baz"
-	TokenExpression                    // e.g. 1 + 2, foo() + 2, bar(), someVar + 2, "foo" + "bar"
-	TokenIdentifierDelimiter           // e.g. var1, var2, var3 := 1, 2, 3 (it's the comma)
-	TokenBlockDelimiter                // e.g. {, }
-	TokenExpressionDelimiter           // e.g. (, )
-	TokenIndexingDelimiter             // e.g. [, ]
+	TokenEOF
+
+	/*
+	Just a name of a variable or action in this case
+	e.g. foo, bar, someVar, someAction
+	*/
+	TokenIdentifier
+
+	/*
+	Any operation that can be performed on literals, identifiers, or expressions
+	e.g. +, :=, =, +=, &&, ||, !, ^^, ==, !=, <, <=, >, >=, (), .
+	*/
+	TokenOperation
+
+	/*
+	Value that is fixed, used as is, can be of any type except action in this case
+	e.g. nil, true, 1, 2.3, -3.14, 3, "foo", "bar", "baz"
+	*/
+	TokenLiteral
+
+	/*
+	Delimiter for separating identifiers in a binding or bindings
+	e.g. var1, var2, var3 := 1, 2, 3 (it's the comma)
+	*/
+	TokenIdentifierDelimiter
+
+	/*
+	Delimiter for opening and closing a block
+	e.g. {, }
+	*/
+	TokenBlockDelimiter
+
+	/*
+	Delimiter for dictating the order of operations in an expression
+	e.g. (, )
+	*/
+	TokenExpressionDelimiter
+
+
+	/*
+	Delimiter for indexing an array or object
+	e.g. [, ]
+	*/
+	TokenIndexingDelimiter
 )
 
 func (k TokenKind) String() string {
@@ -31,8 +66,6 @@ func (k TokenKind) String() string {
 		return "operation"
 	case TokenLiteral:
 		return "literal"
-	case TokenExpression:
-		return "expression"
 	case TokenIdentifierDelimiter:
 		return "identifier delimiter"
 	case TokenBlockDelimiter:
@@ -95,7 +128,7 @@ type EOFToken struct {
 }
 
 func (t EOFToken) String() string {
-	return fmt.Sprintf("[%d:%d] end of file", t.Line(), t.Index())
+	return fmt.Sprintf("[%d:%d] %s", t.Line(), t.Index(), t.Kind())
 }
 
 func (t EOFToken) Line() uint {
@@ -117,7 +150,7 @@ type IdentifierToken struct {
 }
 
 func (t IdentifierToken) String() string {
-	return fmt.Sprintf("[%d:%d] identifier: %v", t.Line(), t.Index(), t.Value)
+	return fmt.Sprintf("[%d:%d] %s -> value: %v", t.Line(), t.Index(), t.Kind(), t.Value)
 }
 
 func (t IdentifierToken) Line() uint {
@@ -139,7 +172,7 @@ type OperationToken struct {
 }
 
 func (t OperationToken) String() string {
-	return fmt.Sprintf("[%d:%d] operation: %v", t.Line(), t.Index(), t.Value)
+	return fmt.Sprintf("[%d:%d] %s -> value: %v", t.Line(), t.Index(), t.Kind(), t.Value)
 }
 
 func (t OperationToken) Line() uint {
@@ -162,7 +195,7 @@ type LiteralToken struct {
 }
 
 func (t LiteralToken) String() string {
-	return fmt.Sprintf("[%d:%d] literal: %v, type: %s", t.Line(), t.Index(), t.Value, t.Type)
+	return fmt.Sprintf("[%d:%d] %s -> value: %v, type: %s", t.Line(), t.Index(), t.Kind(), t.Value, t.Type)
 }
 
 func (t LiteralToken) Line() uint {
@@ -177,35 +210,13 @@ func (t LiteralToken) Kind() TokenKind {
 	return TokenLiteral
 }
 
-type ExpressionToken struct {
-	Values []Token
-	index  uint
-	line   uint
-}
-
-func (t ExpressionToken) String() string {
-	return fmt.Sprintf("[%d:%d] expression: %v", t.Line(), t.Index(), t.Values)
-}
-
-func (t ExpressionToken) Line() uint {
-	return t.line
-}
-
-func (t ExpressionToken) Index() uint {
-	return t.index
-}
-
-func (t ExpressionToken) Kind() TokenKind {
-	return TokenExpression
-}
-
 type IdentifierDelimiterToken struct {
 	index uint
 	line  uint
 }
 
 func (t IdentifierDelimiterToken) String() string {
-	return fmt.Sprintf("[%d:%d] identifier delimiter", t.Line(), t.Index())
+	return fmt.Sprintf("[%d:%d] %s", t.Line(), t.Index(), t.Kind())
 }
 
 func (t IdentifierDelimiterToken) Line() uint {
@@ -232,7 +243,7 @@ func (t BlockDelimiterToken) String() string {
 		_char = CodeBlockOpenSymbol
 	}
 
-	return fmt.Sprintf("[%d:%d] block delimiter: %c", t.Line(), t.Index(), _char)
+	return fmt.Sprintf("[%d:%d] %s -> char: %c", t.Line(), t.Index(), t.Kind(), _char)
 }
 
 func (t BlockDelimiterToken) Line() uint {
@@ -259,7 +270,7 @@ func (t ExpressionDelimiterToken) String() string {
 		_char = ParenOpenSymbol
 	}
 
-	return fmt.Sprintf("[%d:%d] expression delimiter: %c", t.Line(), t.Index(), _char)
+	return fmt.Sprintf("[%d:%d] %s -> char: %c", t.Line(), t.Index(), t.Kind(), _char)
 }
 
 func (t ExpressionDelimiterToken) Line() uint {
@@ -287,7 +298,7 @@ func (t IndexingDelimiterToken) String() string {
 		_char = ParenOpenSymbol
 	}
 
-	return fmt.Sprintf("[%d:%d] indexing delimiter: %c", t.Line(), t.Index(), _char)
+	return fmt.Sprintf("[%d:%d] %s -> char: %c", t.Line(), t.Index(), t.Kind(), _char)
 }
 
 func (t IndexingDelimiterToken) Line() uint {
