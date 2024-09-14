@@ -6,6 +6,7 @@ type VariableType int
 const (
 	VariableUndefined VariableType = iota
 	VariableAction
+	VariableNil
 	VariableBool
 	VariableNumber
 	VariableString
@@ -19,6 +20,8 @@ func (t VariableType) String() string {
 		return "undefined"
 	case VariableAction:
 		return "action"
+	case VariableNil:
+		return "nil"
 	case VariableBool:
 		return "bool"
 	case VariableNumber:

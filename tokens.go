@@ -115,6 +115,99 @@ func (t LiteralType) String() string {
 	}
 }
 
+type OperatorType int
+
+const (
+	OperatorUndefined OperatorType = iota
+
+	// Arithmetic operators
+	OperatorAddition
+	OperatorSubtraction
+	OperatorMultiplication
+	OperatorDivision
+	OperatorModulus
+	OperatorExponentiation
+
+	// Assignment operators
+	OperatorAssignment
+	OperatorAdditionAssignment
+	OperatorSubtractionAssignment
+	OperatorMultiplicationAssignment
+	OperatorDivisionAssignment
+	OperatorModulusAssignment
+	OperatorExponentiationAssignment
+
+	// Comparison operators
+	OperatorEqual
+	OperatorNotEqual
+	OperatorLessThan
+	OperatorLessThanOrEqual
+	OperatorGreaterThan
+	OperatorGreaterThanOrEqual
+
+	// Logical operators
+	OperatorAnd
+	OperatorOr
+	OperatorNot
+	OperatorXor
+)
+
+func (t OperatorType) String() string {
+	switch t {
+	case OperatorUndefined:
+		return "undefined"
+	case OperatorAddition:
+		return string(AdditionSymbol)
+	case OperatorSubtraction:
+		return string(SubtractionSymbol)
+	case OperatorMultiplication:
+		return string(MultiplicationSymbol)
+	case OperatorDivision:
+		return string(DivisionSymbol)
+	case OperatorModulus:
+		return string(ModulusSymbol)
+	case OperatorExponentiation:
+		return string(ExponentSymbol)
+	case OperatorAssignment:
+		return string(AssignmentSymbol)
+	case OperatorAdditionAssignment:
+		return AugmentedAdditionString
+	case OperatorSubtractionAssignment:
+		return AugmentedSubtractionString
+	case OperatorMultiplicationAssignment:
+		return AugmentedMultiplicationString
+	case OperatorDivisionAssignment:
+		return AugmentedDivisionString
+	case OperatorModulusAssignment:
+		return AugmentedModulusString
+	case OperatorExponentiationAssignment:
+		return AugmentedExponentString
+	case OperatorEqual:
+		return EqualityString
+	case OperatorNotEqual:
+		return InequalityString
+	case OperatorLessThan:
+		return LessThanString
+	case OperatorLessThanOrEqual:
+		return LessThanOrEqualString
+	case OperatorGreaterThan:
+		return GreaterThanString
+	case OperatorGreaterThanOrEqual:
+		return GreaterThanOrEqualString
+	case OperatorAnd:
+		return LogicalAndString
+	case OperatorOr:
+		return LogicalOrString
+	case OperatorNot:
+		return LogicalNotString
+	case OperatorXor:
+		return LogicalXorString
+	default:
+		return "unknown"
+	}
+}
+
+
 type Token interface {
 	String() string
 	Line() uint
@@ -166,6 +259,7 @@ func (t IdentifierToken) Kind() TokenKind {
 }
 
 type OperationToken struct {
+	Type  OperatorType
 	Value string
 	index uint
 	line  uint

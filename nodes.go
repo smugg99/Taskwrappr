@@ -37,6 +37,12 @@ const (
 	NodeBlock
 
 	/*
+	Call to an action with arguments
+	e.g. someAction(1, 2, 3), someAction(foo, bar, baz), someAction(1 + 2, 3 + 4)
+	*/
+	NodeActionCall
+
+	/*
 	Name or a chained index of a variable or action
 	e.g. foo, bar["key"], someVar[1], someAction, someObject.key
 	*/
@@ -63,6 +69,8 @@ func (k NodeKind) String() string {
 		return "block"
 	case NodeIdentifier:
 		return "identifier"
+	case NodeActionCall:
+		return "action call"
 	case NodeLiteral:
 		return "literal"
 	default:
@@ -78,8 +86,8 @@ type Node interface {
 }
 
 type BindingNode struct {
-	//Identifier []IdentifierNode
-	//Expression []ExpressionNode
+	Identifier []IdentifierNode
+	Expression []ExpressionNode
 	line uint
 	index uint
 }
@@ -102,8 +110,8 @@ func (n BindingNode) Kind() NodeKind {
 
 
 type BindingsNode struct {
-	//Identifiers []IdentifierNode
-	//Expressions []ExpressionNode
+	Identifiers []IdentifierNode
+	Expressions []ExpressionNode
 	line uint
 	index uint
 }
@@ -194,9 +202,32 @@ func (n IdentifierNode) Kind() NodeKind {
 }
 
 
-type LiteralNode struct {
-	//Value interface{}
+type ActionCallNode struct {
 	line uint
+	index uint
+}
+
+func (n ActionCallNode) String() string {
+	return fmt.Sprintf("[%d:%d] %s", n.Line(), n.Index(), n.Kind())
+}
+
+func (n ActionCallNode) Line() uint {
+	return n.line
+}
+
+func (n ActionCallNode) Index() uint {
+	return n.index
+}
+
+func (n ActionCallNode) Kind() NodeKind {
+	return NodeActionCall
+}
+
+
+type LiteralNode struct {
+	Type  VariableType
+	Value interface{}
+	line  uint
 	index uint
 }
 

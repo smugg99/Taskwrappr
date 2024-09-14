@@ -155,12 +155,23 @@ func (t *Tokenizer) handleOperator() (Token, error) {
 	}
 
 	if longestOperator != "" {
-		return OperationToken{Value: strings.TrimSpace(longestOperator), index: startIndex, line: startLine}, nil
+		operator := strings.TrimSpace(longestOperator)
+		opType, err := categorizeOperator(operator)
+		if err != nil {
+			return nil, err
+		}
+
+		return OperationToken{Type: opType, Value: operator, index: startIndex, line: startLine}, nil
 	}
 
 	if len(possibleOperator) > 0 && isOperator(possibleOperator[:1]) {
 		operator := strings.TrimSpace(possibleOperator[:1])
-		return OperationToken{Value: operator, index: startIndex, line: startLine}, nil
+		opType, err := categorizeOperator(operator)
+		if err != nil {
+			return nil, err
+		}
+
+		return OperationToken{Type: opType, Value: operator, index: startIndex, line: startLine}, nil
 	}
 
 	return nil, fmt.Errorf("invalid operator: %v", possibleOperator)

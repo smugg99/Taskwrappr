@@ -2,6 +2,7 @@
 package taskwrappr
 
 import (
+	"fmt"
 	"unicode"
 )
 
@@ -36,7 +37,7 @@ func isNumberStart(r1, r2, r3 rune) bool {
 
 func isOperatorStart(r rune) bool {
 	for _, op := range Operators {
-		if string(r) == op[:1] {
+		if string(r) == op.Value[:1] {
 			return true
 		}
 	}
@@ -45,20 +46,27 @@ func isOperatorStart(r rune) bool {
 
 func isOperator(operator string) bool {
 	for _, knownOp := range Operators {
-		if operator == knownOp {
+		if operator == knownOp.Value {
 			return true
 		}
 	}
 	return false
 }
 
+func categorizeOperator(operator string) (OperatorType, error) {
+	for _, knownOp := range Operators {
+		if operator == knownOp.Value {
+			return knownOp.Type, nil
+		}
+	}
+
+	return OperatorUndefined, fmt.Errorf("unknown operator: %s", operator)
+}
+
 func isReservedVariableName(name string) (bool, LiteralType) {
-	for _, reserved := range ReservedVariableNames {
-		if name == reserved {
-			if varType, ok := ReservedVariablesTypes[name]; ok {
-				return true, varType
-			}
-			return true, TypeUndefined
+	for _, reservedVar := range ReservedVariables {
+		if name == reservedVar.Name {
+			return true, reservedVar.Type
 		}
 	}
 	return false, TypeUndefined

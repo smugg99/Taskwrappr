@@ -55,56 +55,60 @@ var Separators = string([]rune{
 	NewLineSymbol,
 })
 
-var ArithmeticOperators = []string{
-	string(AdditionSymbol),
-	string(SubtractionSymbol),
-	string(MultiplicationSymbol),
-	string(DivisionSymbol),
-	string(ModulusSymbol),
-	string(ExponentSymbol),
+type OperatorTemplate struct {
+	Type  OperatorType
+	Value string
 }
 
-var AugmentedOperators = []string{
-	AugmentedAdditionString,
-	AugmentedSubtractionString,
-	AugmentedMultiplicationString,
-	AugmentedDivisionString,
-	AugmentedModulusString,
-	AugmentedExponentString,
+var ArithmeticOperators = []OperatorTemplate{
+	{Type: OperatorAddition, Value: string(AdditionSymbol)},
+	{Type: OperatorSubtraction, Value: string(SubtractionSymbol)},
+	{Type: OperatorMultiplication, Value: string(MultiplicationSymbol)},
+	{Type: OperatorDivision, Value: string(DivisionSymbol)},
+	{Type: OperatorModulus, Value: string(ModulusSymbol)},
+	{Type: OperatorExponentiation, Value: string(ExponentSymbol)},
 }
 
-var ComparisonOperators = []string{
-	EqualityString,
-	InequalityString,
-	LessThanString,
-	LessThanOrEqualString,
-	GreaterThanString,
-	GreaterThanOrEqualString,
+var AugmentedOperators = []OperatorTemplate{
+	{Type: OperatorAdditionAssignment, Value: AugmentedAdditionString},
+	{Type: OperatorSubtractionAssignment, Value: AugmentedSubtractionString},
+	{Type: OperatorMultiplicationAssignment, Value: AugmentedMultiplicationString},
+	{Type: OperatorDivisionAssignment, Value: AugmentedDivisionString},
+	{Type: OperatorModulusAssignment, Value: AugmentedModulusString},
+	{Type: OperatorExponentiationAssignment, Value: AugmentedExponentString},
 }
 
-var LogicalOperators = []string{
-	LogicalAndString,
-	LogicalOrString,
-	LogicalNotString,
-	LogicalXorString,
+var ComparisonOperators = []OperatorTemplate{
+	{Type: OperatorEqual, Value: EqualityString},
+	{Type: OperatorNotEqual, Value: InequalityString},
+	{Type: OperatorLessThan, Value: LessThanString},
+	{Type: OperatorLessThanOrEqual, Value: LessThanOrEqualString},
+	{Type: OperatorGreaterThan, Value: GreaterThanString},
+	{Type: OperatorGreaterThanOrEqual, Value: GreaterThanOrEqualString},
 }
 
-var AssignmentOperators = []string{
-	string(AssignmentSymbol),
-	string(DecimalSymbol),
-	DeclarationString,
+var LogicalOperators = []OperatorTemplate{
+	{Type: OperatorAnd, Value: LogicalAndString},
+	{Type: OperatorOr, Value: LogicalOrString},
+	{Type: OperatorNot, Value: LogicalNotString},
+	{Type: OperatorXor, Value: LogicalXorString},
 }
 
-var ReservedVariableNames = []string{
-	TrueString,
-	FalseString,
-	NilString,
+var AssignmentOperators = []OperatorTemplate{
+	{Type: OperatorAssignment, Value: string(AssignmentSymbol)},
+	{Type: OperatorAssignment, Value: string(DecimalSymbol)},
+	{Type: OperatorAssignment, Value: DeclarationString},
 }
 
-var ReservedVariablesTypes = map[string]LiteralType{
-	TrueString:  TypeBool,
-	FalseString: TypeBool,
-	NilString:   TypeNil,
+type ReservedVariableTemplate struct {
+	Name string
+	Type LiteralType
+}
+
+var ReservedVariables = []ReservedVariableTemplate{
+	{Name: TrueString, Type: TypeBool},
+	{Name: FalseString, Type: TypeBool},
+	{Name: NilString, Type: TypeNil},
 }
 
 // Adjust this value if you add more operators
