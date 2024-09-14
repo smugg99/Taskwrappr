@@ -9,10 +9,11 @@ on:
       - tests
 
 jobs:
-  gosec:
+  tests:
     name: Run GoSec Security Scan
     runs-on: ubuntu-latest
-
+    env:
+      GO111MODULE: on
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -22,11 +23,10 @@ jobs:
       with:
         go-version: '1.22.3'
 
-    - name: Install GoSec
-      run: |
-        go install github.com/securego/gosec/v2/cmd/gosec@latest
-        echo "GOPATH=$HOME/go" >> $GITHUB_ENV
-        echo "$HOME/go/bin" >> $GITHUB_ENV
+    - name: Run Gosec Security Scanner
+      uses: securego/gosec@master
+      with:
+        args: ./...
 
     - name: Add GoBin to PATH
       run: echo "$HOME/go/bin" >> $GITHUB_PATH
