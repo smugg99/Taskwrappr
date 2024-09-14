@@ -27,9 +27,3 @@ jobs:
       uses: securego/gosec@master
       with:
         args: ./...
-
-    - name: Add GoBin to PATH
-      run: echo "$HOME/go/bin" >> $GITHUB_PATH
-
-    - name: Run GoSec
-      run: gosec ./...
