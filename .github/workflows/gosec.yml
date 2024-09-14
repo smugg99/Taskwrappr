@@ -25,7 +25,11 @@ jobs:
     - name: Install GoSec
       run: |
         go install github.com/securego/gosec/v2/cmd/gosec@latest
-        echo "$GOPATH/bin" >> $GITHUB_ENV
+        echo "GOPATH=$HOME/go" >> $GITHUB_ENV
+        echo "$HOME/go/bin" >> $GITHUB_ENV
+
+    - name: Add GoBin to PATH
+      run: echo "$HOME/go/bin" >> $GITHUB_PATH
 
     - name: Run GoSec
       run: gosec ./...
