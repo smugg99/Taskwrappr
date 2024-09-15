@@ -4,7 +4,6 @@ package taskwrappr
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -26,13 +25,13 @@ func (t *Tokenizer) String() string {
 }
 
 func NewTokenizer(filePath string) *Tokenizer {
-	absPath, err := filepath.Abs(filePath)
-    if err != nil {
-		fmt.Println("could not determine absolute path: %w", err)
-        return nil
-    }
+	path, err := sanitizeFilePath(filePath)
+	if err != nil {
+		fmt.Println("error sanitizing file path:", err)
+		return nil
+	}
 
-	source, err := os.ReadFile(absPath)
+	source, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Println("error reading script file:", err)
 		return nil
