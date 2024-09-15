@@ -117,7 +117,7 @@ func (t *Tokenizer) nextToken() (Token, error) {
 
 	// Handle end of file
 	if t.Rune == 0 {
-		return EOFToken{index: t.Index, line: t.Line}, nil
+		return EOFToken{index: t.Index, indexSinceLine: t.IndexSinceLine, line: t.Line}, nil
 	}
 
 	// Unknown token
@@ -127,31 +127,31 @@ func (t *Tokenizer) nextToken() (Token, error) {
 func (t *Tokenizer) handleSingleCharacterToken() (Token) {
 	switch t.Rune {
 	case CodeBlockOpenSymbol:
-		token := BlockDelimiterToken{IsOpen: true, index: t.Index - 1, line: t.Line}
+		token := BlockDelimiterToken{IsOpen: true, index: t.Index - 1, indexSinceLine: t.IndexSinceLine, line: t.Line}
 		t.readRune()
 		return token
 	case CodeBlockCloseSymbol:
-		token := BlockDelimiterToken{IsOpen: false, index: t.Index - 1, line: t.Line}
+		token := BlockDelimiterToken{IsOpen: false, index: t.Index - 1, indexSinceLine: t.IndexSinceLine, line: t.Line}
 		t.readRune()
 		return token
 	case DelimiterSymbol:
-		token := IdentifierDelimiterToken{index: t.Index - 1, line: t.Line}
+		token := IdentifierDelimiterToken{index: t.Index - 1, indexSinceLine: t.IndexSinceLine, line: t.Line}
 		t.readRune()
 		return token
 	case ParenOpenSymbol:
-		token := ExpressionDelimiterToken{IsOpen: true, index: t.Index - 1, line: t.Line}
+		token := ExpressionDelimiterToken{IsOpen: true, index: t.Index - 1, indexSinceLine: t.IndexSinceLine, line: t.Line}
 		t.readRune()
 		return token
 	case ParenCloseSymbol:
-		token := ExpressionDelimiterToken{IsOpen: false, index: t.Index - 1, line: t.Line}
+		token := ExpressionDelimiterToken{IsOpen: false, index: t.Index - 1, indexSinceLine: t.IndexSinceLine, line: t.Line}
 		t.readRune()
 		return token
 	case BracketOpenSymbol:
-		token := IndexingDelimiterToken{IsOpen: true, index: t.Index - 1, line: t.Line}
+		token := IndexingDelimiterToken{IsOpen: true, index: t.Index - 1, indexSinceLine: t.IndexSinceLine, line: t.Line}
 		t.readRune()
 		return token
 	case BracketCloseSymbol:
-		token := IndexingDelimiterToken{IsOpen: false, index: t.Index - 1, line: t.Line}
+		token := IndexingDelimiterToken{IsOpen: false, index: t.Index - 1, indexSinceLine: t.IndexSinceLine, line: t.Line}
 		t.readRune()
 		return token
 	case CommentSymbol:
@@ -165,6 +165,7 @@ func (t *Tokenizer) handleSingleCharacterToken() (Token) {
 // Handles single and multi-character operators
 func (t *Tokenizer) handleOperator() (Token, error) {
 	startIndex := t.Index
+	startIndexSinceLine := t.IndexSinceLine
 	startLine := t.Line
 
 	var value strings.Builder
@@ -189,7 +190,7 @@ func (t *Tokenizer) handleOperator() (Token, error) {
 		if err != nil {
 			return nil, err
 		}
-		return OperationToken{Type: opType, Value: longestOperator, index: startIndex, line: startLine}, nil
+		return OperationToken{Type: opType, Value: longestOperator, index: startIndex, indexSinceLine: startIndexSinceLine, line: startLine}, nil
 	}
 
 	if firstRune := value.String()[:1]; isOperator(firstRune) {
@@ -197,7 +198,7 @@ func (t *Tokenizer) handleOperator() (Token, error) {
 		if err != nil {
 			return nil, err
 		}
-		return OperationToken{Type: opType, Value: firstRune, index: startIndex, line: startLine}, nil
+		return OperationToken{Type: opType, Value: firstRune, index: startIndex, indexSinceLine: startIndexSinceLine, line: startLine}, nil
 	}
 
 	return nil, fmt.Errorf("invalid operator: %v", value.String())
@@ -206,6 +207,7 @@ func (t *Tokenizer) handleOperator() (Token, error) {
 // Handle string literals, including escape sequences
 func (t *Tokenizer) handleStringLiteral() (Token, error) {
 	startIndex := t.Index
+	startIndexSinceLine := t.IndexSinceLine
 	startLine := t.Line
 	var value strings.Builder
 
@@ -227,13 +229,15 @@ func (t *Tokenizer) handleStringLiteral() (Token, error) {
 	if t.Rune == QuoteSymbol {
 		t.readRune()
 	}
-	return LiteralToken{Value: value.String(), Type: LiteralString, index: startIndex, line: startLine}, nil
+	return LiteralToken{Value: value.String(), Type: LiteralString, index: startIndex, indexSinceLine: startIndexSinceLine, line: startLine}, nil
 }
 
 // Handle numeric literals, including negative numbers and floats
 func (t *Tokenizer) handleNumberLiteral() (Token, error) {
     startIndex := t.Index - 1
+	startIndexSinceLine := t.IndexSinceLine
     startLine := t.Line
+	
     hasDecimal := false
     var value strings.Builder
 
@@ -263,12 +267,13 @@ func (t *Tokenizer) handleNumberLiteral() (Token, error) {
         return nil, fmt.Errorf("invalid float literal: %v", value.String())
     }
 
-    return LiteralToken{Value: floatValue, Type: LiteralNumber, index: startIndex, line: startLine}, nil
+    return LiteralToken{Value: floatValue, Type: LiteralNumber, index: startIndex, indexSinceLine: startIndexSinceLine, line: startLine}, nil
 }
 
 // Handle identifiers, including reserved variable names
 func (t *Tokenizer) handleIdentifier() (Token, error) {
     startIndex := t.Index
+	startIndexSinceLine := t.IndexSinceLine
     startLine := t.Line
     var value strings.Builder
 
@@ -281,10 +286,10 @@ func (t *Tokenizer) handleIdentifier() (Token, error) {
     idValue := strings.TrimSpace(value.String())
     // Check if the identifier is a reserved variable name
     if isReserved, varType := isReservedVariableName(idValue); isReserved {
-        return LiteralToken{Value: idValue, Type: varType, index: startIndex, line: startLine}, nil
+        return LiteralToken{Value: idValue, Type: varType, index: startIndex, indexSinceLine: startIndexSinceLine, line: startLine}, nil
     }
 
-    return IdentifierToken{Value: idValue, index: startIndex, line: startLine}, nil
+    return IdentifierToken{Value: idValue, index: startIndex, indexSinceLine: startIndexSinceLine, line: startLine}, nil
 }
 
 // Skips over comments (until the end of the line or EOF)
@@ -303,7 +308,7 @@ func (t *Tokenizer) Tokenize() ([]Token, error) {
 	for {
 		token, err := t.nextToken()
 		if err != nil {
-			return nil, fmt.Errorf("[%s:%d:%d] %v", t.FilePath, t.Line, t.IndexSinceLine, err)
+			return nil, fmt.Errorf("[%s:%d:%d] error tokenizing: %v", t.FilePath, t.Line, t.IndexSinceLine, err)
 		}
 
 		if token == nil {

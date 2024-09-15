@@ -25,19 +25,19 @@ const (
 	NodeBindings
 
 	/*
-	Sequence of literals, identifiers, and operations that evaluate to a value
+	Sequence of literals, identifiers, and operations that evaluate to a value (variable)
 	e.g. 1 + 2, foo() + 2, bar(), someVar + 2, "foo" + "bar"
 	*/
 	NodeExpression
 
 	/*
-	Sequence of nodes that are executed in order
+	Sequence of nodes that are executed in order (might evaluate to a value)
 	e.g. { var1 := 1; someFunc(54 + 4); var3 = 3 + 34; }
 	*/
 	NodeBlock
 
 	/*
-	Call to an action with arguments
+	Call to an action with arguments, can have a block after it
 	e.g. someAction(1, 2, 3), someAction(foo, bar, baz), someAction(1 + 2, 3 + 4)
 	*/
 	NodeActionCall
@@ -79,21 +79,23 @@ func (k NodeKind) String() string {
 }
 
 type Node interface {
-	String() string
-	Line() uint
-	Index() uint
-	Kind() NodeKind
+	String()         string
+	Line()           uint
+	Index()          uint
+	IndexSinceLine() uint
+	Kind()           NodeKind
 }
 
 type BindingNode struct {
-	Identifier []IdentifierNode
-	Expression []ExpressionNode
-	line uint
-	index uint
+	Identifier     IdentifierNode
+	Expression     ExpressionNode
+	line           uint
+	index          uint
+	indexSinceLine uint
 }
 
 func (n BindingNode) String() string {
-	return fmt.Sprintf("[%d:%d] %s", n.Line(), n.Index(), n.Kind())
+	return n.Kind().String()
 }
 
 func (n BindingNode) Line() uint {
@@ -104,20 +106,25 @@ func (n BindingNode) Index() uint {
 	return n.index
 }
 
+func (n BindingNode) IndexSinceLine() uint {
+	return n.indexSinceLine
+}
+
 func (n BindingNode) Kind() NodeKind {
 	return NodeBinding
 }
 
 
 type BindingsNode struct {
-	Identifiers []IdentifierNode
-	Expressions []ExpressionNode
-	line uint
-	index uint
+	Identifiers    []IdentifierNode
+	Expressions    []ExpressionNode
+	line           uint
+	index          uint
+	indexSinceLine uint
 }
 
 func (n BindingsNode) String() string {
-	return fmt.Sprintf("[%d:%d] %s", n.Line(), n.Index(), n.Kind())
+	return n.Kind().String()
 }
 
 func (n BindingsNode) Line() uint {
@@ -128,19 +135,24 @@ func (n BindingsNode) Index() uint {
 	return n.index
 }
 
+func (n BindingsNode) IndexSinceLine() uint {
+	return n.indexSinceLine
+}
+
 func (n BindingsNode) Kind() NodeKind {
 	return NodeBinding
 }
 
 
 type ExpressionNode struct {
-	//Nodes []Node
-	line uint
-	index uint
+	Nodes          []Node
+	line           uint
+	index          uint
+	indexSinceLine uint
 }
 
 func (n ExpressionNode) String() string {
-	return fmt.Sprintf("[%d:%d] %s", n.Line(), n.Index(), n.Kind())
+	return n.Kind().String()
 }
 
 func (n ExpressionNode) Line() uint {
@@ -151,19 +163,24 @@ func (n ExpressionNode) Index() uint {
 	return n.index
 }
 
+func (n ExpressionNode) IndexSinceLine() uint {
+	return n.indexSinceLine
+}
+
 func (n ExpressionNode) Kind() NodeKind {
 	return NodeExpression
 }
 
 
 type BlockNode struct {
-	//Nodes []Node
-	line uint
-	index uint
+	Nodes          []Node
+	line           uint
+	index          uint
+	indexSinceLine uint
 }
 
 func (n BlockNode) String() string {
-	return fmt.Sprintf("[%d:%d] %s", n.Line(), n.Index(), n.Kind())
+	return n.Kind().String()
 }
 
 func (n BlockNode) Line() uint {
@@ -174,19 +191,25 @@ func (n BlockNode) Index() uint {
 	return n.index
 }
 
+func (n BlockNode) IndexSinceLine() uint {
+	return n.indexSinceLine
+}
+
 func (n BlockNode) Kind() NodeKind {
 	return NodeBlock
 }
 
 
 type IdentifierNode struct {
-	//Value string
-	line uint
-	index uint
+	BaseName       string
+	Selectors      []Selector
+	line           uint
+	index          uint
+	indexSinceLine uint
 }
 
 func (n IdentifierNode) String() string {
-	return fmt.Sprintf("[%d:%d] %s", n.Line(), n.Index(), n.Kind())
+	return fmt.Sprintf("%s -> base name: %s", n.Kind(), n.BaseName)
 }
 
 func (n IdentifierNode) Line() uint {
@@ -197,18 +220,24 @@ func (n IdentifierNode) Index() uint {
 	return n.index
 }
 
+func (n IdentifierNode) IndexSinceLine() uint {
+	return n.indexSinceLine
+}
+
 func (n IdentifierNode) Kind() NodeKind {
 	return NodeIdentifier
 }
 
 
 type ActionCallNode struct {
-	line uint
-	index uint
+	Identifier     IdentifierNode
+	line           uint
+	index          uint
+	indexSinceLine uint
 }
 
 func (n ActionCallNode) String() string {
-	return fmt.Sprintf("[%d:%d] %s", n.Line(), n.Index(), n.Kind())
+	return n.Kind().String()
 }
 
 func (n ActionCallNode) Line() uint {
@@ -219,20 +248,25 @@ func (n ActionCallNode) Index() uint {
 	return n.index
 }
 
+func (n ActionCallNode) IndexSinceLine() uint {
+	return n.indexSinceLine
+}
+
 func (n ActionCallNode) Kind() NodeKind {
 	return NodeActionCall
 }
 
 
 type LiteralNode struct {
-	Type  VariableType
-	Value interface{}
-	line  uint
-	index uint
+	Type           LiteralType
+	Value          interface{}
+	line           uint
+	index          uint
+	indexSinceLine uint
 }
 
 func (n LiteralNode) String() string {
-	return fmt.Sprintf("[%d:%d] %s", n.Line(), n.Index(), n.Kind())
+	return n.Kind().String()
 }
 
 func (n LiteralNode) Line() uint {
@@ -241,6 +275,10 @@ func (n LiteralNode) Line() uint {
 
 func (n LiteralNode) Index() uint {
 	return n.index
+}
+
+func (n LiteralNode) IndexSinceLine() uint {
+	return n.indexSinceLine
 }
 
 func (n LiteralNode) Kind() NodeKind {

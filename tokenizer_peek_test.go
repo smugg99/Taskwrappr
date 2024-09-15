@@ -2,14 +2,14 @@ package taskwrappr
 
 import "testing"
 
-func TestPeekRune(t *testing.T) {
+func TestTokenizerPeekRune(t *testing.T) {
 	tok := NewTokenizer("hello")
 	if peek := tok.peekRune(0); peek != 'h' {
 		t.Errorf("Expected 'h' got %c", peek)
 	}
 }
 
-func TestPeekRuneWithSpecialChars(t *testing.T) {
+func TestTokenizerPeekRuneWithSpecialChars(t *testing.T) {
 	tok := NewTokenizer("h3llo!@# world")
 	if peek := tok.peekRune(0); peek != 'h' {
 		t.Errorf("Expected 'h' got %c", peek)
@@ -35,7 +35,7 @@ func TestPeekRuneWithSpecialChars(t *testing.T) {
 	}
 }
 
-func TestPeekRuneWithSpaces(t *testing.T) {
+func TestTokenizerPeekRuneWithSpaces(t *testing.T) {
 	tok := NewTokenizer("h3l lo!@# world")
 	if peek := tok.peekRune(0); peek != 'h' {
 		t.Errorf("Expected 'h' got %c", peek)
@@ -55,14 +55,14 @@ func TestPeekRuneWithSpaces(t *testing.T) {
 	}
 }
 
-func TestPeekRuneOutOfBounds(t *testing.T) {
+func TestTokenizerPeekRuneOutOfBounds(t *testing.T) {
 	tok := NewTokenizer("hello")
 	if peek := tok.peekRune(10); peek != 0 {
 		t.Errorf("Expected 0 got %c", peek)
 	}
 }
 
-func TestPeekRuneEmptyString(t *testing.T) {
+func TestTokenizerPeekRuneEmptyString(t *testing.T) {
 	tok := NewTokenizer("")
 	if peek := tok.peekRune(0); peek != 0 {
 		t.Errorf("Expected 0 got %c", peek)

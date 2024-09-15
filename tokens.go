@@ -215,19 +215,21 @@ func (t OperatorType) String() string {
 
 
 type Token interface {
-	String() string
-	Line() uint
-	Index() uint
-	Kind() TokenKind
+	String()         string
+	Line()           uint
+	Index()          uint
+	IndexSinceLine() uint
+	Kind()           TokenKind
 }
 
 type EOFToken struct {
-	index uint
-	line  uint
+	index          uint
+	indexSinceLine uint
+	line           uint
 }
 
 func (t EOFToken) String() string {
-	return fmt.Sprintf("[%d:%d] %s", t.Line(), t.Index(), t.Kind())
+	return t.Kind().String()
 }
 
 func (t EOFToken) Line() uint {
@@ -238,18 +240,23 @@ func (t EOFToken) Index() uint {
 	return t.index
 }
 
+func (t EOFToken) IndexSinceLine() uint {
+	return t.indexSinceLine
+}
+
 func (t EOFToken) Kind() TokenKind {
 	return TokenEOF
 }
 
 type IdentifierToken struct {
-	Value string
-	index uint
-	line  uint
+	Value          string
+	index          uint
+	indexSinceLine uint
+	line           uint
 }
 
 func (t IdentifierToken) String() string {
-	return fmt.Sprintf("[%d:%d] %s -> value: %v", t.Line(), t.Index(), t.Kind(), t.Value)
+	return fmt.Sprintf("%s -> value: %v", t.Kind(), t.Value)
 }
 
 func (t IdentifierToken) Line() uint {
@@ -260,19 +267,24 @@ func (t IdentifierToken) Index() uint {
 	return t.index
 }
 
+func (t IdentifierToken) IndexSinceLine() uint {
+	return t.indexSinceLine
+}
+
 func (t IdentifierToken) Kind() TokenKind {
 	return TokenIdentifier
 }
 
 type OperationToken struct {
-	Type  OperatorType
-	Value string
-	index uint
-	line  uint
+	Type           OperatorType
+	Value          string
+	index          uint
+	indexSinceLine uint
+	line           uint
 }
 
 func (t OperationToken) String() string {
-	return fmt.Sprintf("[%d:%d] %s -> value: %v, type: %s", t.Line(), t.Index(), t.Kind(), t.Value, t.Type)
+	return fmt.Sprintf("%s -> value: %v, type: %s", t.Kind(), t.Value, t.Type)
 }
 
 func (t OperationToken) Line() uint {
@@ -283,19 +295,25 @@ func (t OperationToken) Index() uint {
 	return t.index
 }
 
+func (t OperationToken) IndexSinceLine() uint {
+	return t.indexSinceLine
+}
+
 func (t OperationToken) Kind() TokenKind {
 	return TokenOperation
 }
 
+
 type LiteralToken struct {
-	Value interface{}
-	Type  LiteralType
-	index uint
-	line  uint
+	Value          interface{}
+	Type           LiteralType
+	index          uint
+	indexSinceLine uint
+	line           uint
 }
 
 func (t LiteralToken) String() string {
-	return fmt.Sprintf("[%d:%d] %s -> value: %v, type: %s", t.Line(), t.Index(), t.Kind(), t.Value, t.Type)
+	return fmt.Sprintf("%s -> value: %v, type: %s", t.Kind(), t.Value, t.Type)
 }
 
 func (t LiteralToken) Line() uint {
@@ -306,17 +324,23 @@ func (t LiteralToken) Index() uint {
 	return t.index
 }
 
+func (t LiteralToken) IndexSinceLine() uint {
+	return t.indexSinceLine
+}
+
 func (t LiteralToken) Kind() TokenKind {
 	return TokenLiteral
 }
 
+
 type IdentifierDelimiterToken struct {
-	index uint
-	line  uint
+	index          uint
+	indexSinceLine uint
+	line           uint
 }
 
 func (t IdentifierDelimiterToken) String() string {
-	return fmt.Sprintf("[%d:%d] %s", t.Line(), t.Index(), t.Kind())
+	return t.Kind().String()
 }
 
 func (t IdentifierDelimiterToken) Line() uint {
@@ -327,14 +351,20 @@ func (t IdentifierDelimiterToken) Index() uint {
 	return t.index
 }
 
+func (t IdentifierDelimiterToken) IndexSinceLine() uint {
+	return t.indexSinceLine
+}
+
 func (t IdentifierDelimiterToken) Kind() TokenKind {
 	return TokenIdentifierDelimiter
 }
 
+
 type BlockDelimiterToken struct {
-	IsOpen bool
-	index  uint
-	line   uint
+	IsOpen         bool
+	index          uint
+	indexSinceLine uint
+	line           uint
 }
 
 func (t BlockDelimiterToken) String() string {
@@ -343,7 +373,7 @@ func (t BlockDelimiterToken) String() string {
 		_char = CodeBlockOpenSymbol
 	}
 
-	return fmt.Sprintf("[%d:%d] %s -> char: %c", t.Line(), t.Index(), t.Kind(), _char)
+	return fmt.Sprintf("%s -> char: %c", t.Kind(), _char)
 }
 
 func (t BlockDelimiterToken) Line() uint {
@@ -354,14 +384,19 @@ func (t BlockDelimiterToken) Index() uint {
 	return t.index
 }
 
+func (t BlockDelimiterToken) IndexSinceLine() uint {
+	return t.indexSinceLine
+}
+
 func (t BlockDelimiterToken) Kind() TokenKind {
 	return TokenBlockDelimiter
 }
 
 type ExpressionDelimiterToken struct {
-	IsOpen bool
-	index  uint
-	line   uint
+	IsOpen         bool
+	index          uint
+	indexSinceLine uint
+	line           uint
 }
 
 func (t ExpressionDelimiterToken) String() string {
@@ -370,7 +405,7 @@ func (t ExpressionDelimiterToken) String() string {
 		_char = ParenOpenSymbol
 	}
 
-	return fmt.Sprintf("[%d:%d] %s -> char: %c", t.Line(), t.Index(), t.Kind(), _char)
+	return fmt.Sprintf("%s -> char: %c", t.Kind(), _char)
 }
 
 func (t ExpressionDelimiterToken) Line() uint {
@@ -381,24 +416,29 @@ func (t ExpressionDelimiterToken) Index() uint {
 	return t.index
 }
 
+func (t ExpressionDelimiterToken) IndexSinceLine() uint {
+	return t.indexSinceLine
+}
+
 func (t ExpressionDelimiterToken) Kind() TokenKind {
 	return TokenExpressionDelimiter
 }
 
 
 type IndexingDelimiterToken struct {
-	IsOpen bool
-	index uint
-	line  uint
+	IsOpen         bool
+	index          uint
+	indexSinceLine uint
+	line           uint
 }
 
 func (t IndexingDelimiterToken) String() string {
-	_char := ParenCloseSymbol
+	_char := BracketCloseSymbol
 	if t.IsOpen {
-		_char = ParenOpenSymbol
+		_char = BracketOpenSymbol
 	}
 
-	return fmt.Sprintf("[%d:%d] %s -> char: %c", t.Line(), t.Index(), t.Kind(), _char)
+	return fmt.Sprintf("%s -> char: %c", t.Kind(), _char)
 }
 
 func (t IndexingDelimiterToken) Line() uint {
@@ -407,6 +447,10 @@ func (t IndexingDelimiterToken) Line() uint {
 
 func (t IndexingDelimiterToken) Index() uint {
 	return t.index
+}
+
+func (t IndexingDelimiterToken) IndexSinceLine() uint {
+	return t.indexSinceLine
 }
 
 func (t IndexingDelimiterToken) Kind() TokenKind {

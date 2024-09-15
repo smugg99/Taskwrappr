@@ -25,14 +25,14 @@ func main() {
 
 	scriptPath := "../scripts/tests.tw"
 	tokenizer := taskwrappr.NewTokenizer(scriptPath)
-	startTime := time.Now()
+	_tokenizerStartTime := time.Now()
 	tokens, err := tokenizer.Tokenize()
 	defer func() {
 		if err != nil || len(tokens) == 0 {
 			return
 		}
 
-		endTime := time.Since(startTime)
+		endTime := time.Since(_tokenizerStartTime)
 		tokenCount := len(tokens)
 		lineCount := tokenizer.Line
 
@@ -53,6 +53,34 @@ func main() {
 	}
 
 	for _, token := range tokens {
-		fmt.Println(token)
+		fmt.Printf("[%s:%d:%d] %s\n", scriptPath, token.Line(), token.IndexSinceLine(), token)
+	}
+
+	parser := taskwrappr.NewParser(tokens, scriptPath)
+	_parserStartTime := time.Now()
+	nodes, err := parser.Parse()
+	defer func() {
+		if err != nil || len(nodes) == 0 {
+			return
+		}
+
+		endTime := time.Since(_parserStartTime)
+		nodeCount := len(nodes)
+
+		endTimeMs := float64(endTime) / float64(time.Millisecond)
+		perNodeMs := endTimeMs / float64(nodeCount)
+
+		fmt.Printf("Parse time: %.3fms\n", endTimeMs)
+		fmt.Printf("Nodes: %d\n", nodeCount)
+		fmt.Printf("Time per node: %.3fms\n", perNodeMs)
+	}()
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, node := range nodes {
+		fmt.Printf("[%s:%d:%d] %s\n", scriptPath, node.Line(), node.IndexSinceLine(), node)
 	}
 }
