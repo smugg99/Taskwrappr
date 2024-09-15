@@ -40,7 +40,7 @@ func (p *Parser) readToken() {
 func (p *Parser) peekToken(x uint) Token {
 	index := p.Index - 1 + x
 	if index >= uint(len(p.Tokens)) {
-		return nil
+		return EOFToken{p.Index, p.IndexSinceLine, p.Line}
 	}
 
 	return p.Tokens[index]
@@ -107,7 +107,7 @@ func (p *Parser) Parse() ([]Node, error) {
 	for {
 		node, err := p.nextNode()
 		if err != nil {
-			return nil, fmt.Errorf("[%s] error parsing: %v", p.FilePath, err)
+			return nil, fmt.Errorf("[%s:%d:%d] error parsing: %v", p.FilePath, p.Token.Line(), p.Token.IndexSinceLine(), err)
 		}
 		
 		if node == nil {
