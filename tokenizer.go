@@ -31,7 +31,7 @@ func NewTokenizer(filePath string) *Tokenizer {
 		return nil
 	}
 
-	source, err := os.ReadFile(path)
+	source, err := os.ReadFile(path) // #nosec
 	if err != nil {
 		fmt.Println("error reading script file:", err)
 		return nil
