@@ -27,10 +27,6 @@ func isStringStart(r rune) bool {
 }
 
 func isNumberStart(r1, r2, r3 rune) bool {
-	if r1 == 0 || r2 == 0 || r3 == 0 {
-		return false
-	}
-
 	return unicode.IsDigit(r1) ||
 		(r1 == SubtractionSymbol && (unicode.IsDigit(r2) ||
 			(r2 == DecimalSymbol && unicode.IsDigit(r3)))) ||

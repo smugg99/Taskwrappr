@@ -90,6 +90,11 @@ func (t *Tokenizer) nextToken() (Token, error) {
 		t.readRune()
 	}
 
+	// Handle end of file
+	if t.Rune == 0 {
+		return EOFToken{index: t.Index, indexSinceLine: t.IndexSinceLine, line: t.Line}, nil
+	}
+
 	// Handle single-character tokens
 	if token := t.handleSingleCharacterToken(); token != nil {
 		return token, nil
@@ -113,11 +118,6 @@ func (t *Tokenizer) nextToken() (Token, error) {
 	// Handle operators (single or multi-character)
 	if isOperatorStart(t.Rune) {
 		return t.handleOperator()
-	}
-
-	// Handle end of file
-	if t.Rune == 0 {
-		return EOFToken{index: t.Index, indexSinceLine: t.IndexSinceLine, line: t.Line}, nil
 	}
 
 	// Unknown token
@@ -262,9 +262,10 @@ func (t *Tokenizer) handleNumberLiteral() (Token, error) {
     }
 
     // Attempt to parse the collected value as a float
-    floatValue, err := strconv.ParseFloat(value.String(), 64)
+	cleanedValue := strings.TrimSpace(value.String())
+    floatValue, err := strconv.ParseFloat(cleanedValue, 64)
     if err != nil {
-        return nil, fmt.Errorf("invalid float literal: %v", value.String())
+        return nil, fmt.Errorf("invalid float literal: %v", cleanedValue)
     }
 
     return LiteralToken{Value: floatValue, Type: LiteralNumber, index: startIndex, indexSinceLine: startIndexSinceLine, line: startLine}, nil

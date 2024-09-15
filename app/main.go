@@ -73,6 +73,7 @@ func main() {
 	for _, token := range tokens {
 		fmt.Printf("[%s:%d:%d] %s\n", scriptPath, token.Line(), token.IndexSinceLine(), token)
 	}
+	fmt.Printf("\n")
 
 	parser := taskwrappr.NewParser(tokens, scriptPath)
 	_parserStartTime := time.Now()
@@ -87,6 +88,7 @@ func main() {
 	for _, node := range nodes {
 		fmt.Printf("[%s:%d:%d] %s\n", scriptPath, node.Line(), node.IndexSinceLine(), node)
 	}
+	fmt.Printf("\n")
 
 	printTokenizeStats(tokens, _tokenizerStartTime)
 	printParseStats(nodes, _parserStartTime)

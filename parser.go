@@ -46,6 +46,18 @@ func (p *Parser) peekToken(x uint) Token {
 	return p.Tokens[index]
 }
 
+func (p *Parser) peekUntilTokenKind(tokenKind TokenKind) (bool, []Token) {
+	var tokens []Token
+	for i := p.Index; i < uint(len(p.Tokens)); i++ {
+		tokens = append(tokens, p.Tokens[i])
+		if p.Tokens[i].Kind() == tokenKind {
+			return true, tokens
+		}
+	}
+
+	return false, tokens
+}
+
 func (p *Parser) nextNode() (Node, error) {
 	if p.Token == nil {
 		return nil, nil
