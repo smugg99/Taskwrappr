@@ -4,6 +4,7 @@ package taskwrappr
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"unicode"
 )
 
@@ -74,18 +75,25 @@ func isReservedVariableName(name string) (bool, LiteralType) {
 }
 
 func sanitizeFilePath(path string) (string, error) {
-	if path == "" {
-		return "", fmt.Errorf("empty file path")
-	}
+    if path == "" {
+        return "", fmt.Errorf("empty file path")
+    }
 
-	absPath, err := filepath.Abs(path)
+    // Convert to absolute path
+    absPath, err := filepath.Abs(path)
     if err != nil {
         return "", fmt.Errorf("could not determine absolute path: %w", err)
     }
 
-	if filepath.Ext(absPath) != ".tw" {
+    // Check for path traversal
+    if strings.Contains(absPath, "..") {
+        return "", fmt.Errorf("path contains directory traversal: %s", absPath)
+    }
+
+    // Validate file extension
+    if filepath.Ext(absPath) != ".tw" {
         return "", fmt.Errorf("invalid file type: %s", absPath)
     }
 
-	return path, nil
+    return absPath, nil
 }
