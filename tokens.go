@@ -82,33 +82,33 @@ func (k TokenKind) String() string {
 type LiteralType int
 
 const (
-	TypeUndefined LiteralType = iota
-	TypeNil
-	TypeBool
-	TypeNumber
-	TypeString
-	TypeAction
-	TypeArray
-	TypeObject
+	LiteralUndefined LiteralType = iota
+	LiteralNil
+	LiteralBool
+	LiteralNumber
+	LiteralString
+	LiteralAction
+	LiteralArray
+	LiteralObject
 )
 
 func (t LiteralType) String() string {
 	switch t {
-	case TypeUndefined:
+	case LiteralUndefined:
 		return "undefined"
-	case TypeNil:
+	case LiteralNil:
 		return "nil"
-	case TypeBool:
+	case LiteralBool:
 		return "bool"
-	case TypeNumber:
+	case LiteralNumber:
 		return "number"
-	case TypeString:
+	case LiteralString:
 		return "string"
-	case TypeAction:
+	case LiteralAction:
 		return "action"
-	case TypeArray:
+	case LiteralArray:
 		return "array"
-	case TypeObject:
+	case LiteralObject:
 		return "object"
 	default:
 		return "unknown"
@@ -130,6 +130,8 @@ const (
 
 	// Assignment operators
 	OperatorAssignment
+	OperatorDeclaration
+	OperatorIndexing
 	OperatorAdditionAssignment
 	OperatorSubtractionAssignment
 	OperatorMultiplicationAssignment
@@ -157,51 +159,55 @@ func (t OperatorType) String() string {
 	case OperatorUndefined:
 		return "undefined"
 	case OperatorAddition:
-		return string(AdditionSymbol)
+		return "addition"
 	case OperatorSubtraction:
-		return string(SubtractionSymbol)
+		return "subtraction"
 	case OperatorMultiplication:
-		return string(MultiplicationSymbol)
+		return "multiplication"
 	case OperatorDivision:
-		return string(DivisionSymbol)
+		return "division"
 	case OperatorModulus:
-		return string(ModulusSymbol)
+		return "modulus"
 	case OperatorExponentiation:
-		return string(ExponentSymbol)
+		return "exponentiation"
 	case OperatorAssignment:
-		return string(AssignmentSymbol)
+		return "assignment"
+	case OperatorDeclaration:
+		return "declaration"
+	case OperatorIndexing:
+		return "indexing"
 	case OperatorAdditionAssignment:
-		return AugmentedAdditionString
+		return "augmented addition"
 	case OperatorSubtractionAssignment:
-		return AugmentedSubtractionString
+		return "augmented subtraction"
 	case OperatorMultiplicationAssignment:
-		return AugmentedMultiplicationString
+		return "augmented multiplication"
 	case OperatorDivisionAssignment:
-		return AugmentedDivisionString
+		return "augmented division"
 	case OperatorModulusAssignment:
-		return AugmentedModulusString
+		return "augmented modulus"
 	case OperatorExponentiationAssignment:
-		return AugmentedExponentString
+		return "augmented exponentiation"
 	case OperatorEqual:
-		return EqualityString
+		return "equality"
 	case OperatorNotEqual:
-		return InequalityString
+		return "inequality"
 	case OperatorLessThan:
-		return LessThanString
+		return "less than"
 	case OperatorLessThanOrEqual:
-		return LessThanOrEqualString
+		return "less than or equal"
 	case OperatorGreaterThan:
-		return GreaterThanString
+		return "greater than"
 	case OperatorGreaterThanOrEqual:
-		return GreaterThanOrEqualString
+		return "greater than or equal"
 	case OperatorAnd:
-		return LogicalAndString
+		return "logical and"
 	case OperatorOr:
-		return LogicalOrString
+		return "logical or"
 	case OperatorNot:
-		return LogicalNotString
+		return "logical not"
 	case OperatorXor:
-		return LogicalXorString
+		return "logical xor"
 	default:
 		return "unknown"
 	}
@@ -266,7 +272,7 @@ type OperationToken struct {
 }
 
 func (t OperationToken) String() string {
-	return fmt.Sprintf("[%d:%d] %s -> value: %v", t.Line(), t.Index(), t.Kind(), t.Value)
+	return fmt.Sprintf("[%d:%d] %s -> value: %v, type: %s", t.Line(), t.Index(), t.Kind(), t.Value, t.Type)
 }
 
 func (t OperationToken) Line() uint {

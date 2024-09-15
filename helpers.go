@@ -69,5 +69,5 @@ func isReservedVariableName(name string) (bool, LiteralType) {
 			return true, reservedVar.Type
 		}
 	}
-	return false, TypeUndefined
+	return false, LiteralUndefined
 }

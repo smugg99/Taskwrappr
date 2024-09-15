@@ -3,20 +3,28 @@ package main
 
 import (
 	"fmt"
-	"os"
+	//"os"
 	"time"
 
 	"smuggr.xyz/taskwrappr"
 )
 
 func main() {
-	script, err := os.ReadFile("../scripts/tests.tw")
-	if err != nil {
-		fmt.Println("error reading script file:", err)
-		return
-	}
+	//var scriptPath string
+	// if len(os.Args) >= 2 {
+	// 	scriptPath = os.Args[1]
 
-	tokenizer := taskwrappr.NewTokenizer(string(script))
+	// 	if scriptPath == "" {
+	// 		fmt.Println("please provide a non empty .tw script path")
+	// 		return
+	// 	}
+	// } else {
+	// 	fmt.Println("please provide a valid .tw script path")
+	// 	return
+	// }
+
+	scriptPath := "../scripts/tests.tw"
+	tokenizer := taskwrappr.NewTokenizer(scriptPath)
 	startTime := time.Now()
 	tokens, err := tokenizer.Tokenize()
 	defer func() {

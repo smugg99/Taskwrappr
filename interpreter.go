@@ -61,43 +61,43 @@ type OperatorTemplate struct {
 }
 
 var ArithmeticOperators = []OperatorTemplate{
-	{Type: OperatorAddition, Value: string(AdditionSymbol)},
-	{Type: OperatorSubtraction, Value: string(SubtractionSymbol)},
+	{Type: OperatorAddition,       Value: string(AdditionSymbol)},
+	{Type: OperatorSubtraction,    Value: string(SubtractionSymbol)},
 	{Type: OperatorMultiplication, Value: string(MultiplicationSymbol)},
-	{Type: OperatorDivision, Value: string(DivisionSymbol)},
-	{Type: OperatorModulus, Value: string(ModulusSymbol)},
+	{Type: OperatorDivision,       Value: string(DivisionSymbol)},
+	{Type: OperatorModulus,        Value: string(ModulusSymbol)},
 	{Type: OperatorExponentiation, Value: string(ExponentSymbol)},
 }
 
 var AugmentedOperators = []OperatorTemplate{
-	{Type: OperatorAdditionAssignment, Value: AugmentedAdditionString},
-	{Type: OperatorSubtractionAssignment, Value: AugmentedSubtractionString},
+	{Type: OperatorAdditionAssignment,       Value: AugmentedAdditionString},
+	{Type: OperatorSubtractionAssignment,    Value: AugmentedSubtractionString},
 	{Type: OperatorMultiplicationAssignment, Value: AugmentedMultiplicationString},
-	{Type: OperatorDivisionAssignment, Value: AugmentedDivisionString},
-	{Type: OperatorModulusAssignment, Value: AugmentedModulusString},
+	{Type: OperatorDivisionAssignment,       Value: AugmentedDivisionString},
+	{Type: OperatorModulusAssignment,        Value: AugmentedModulusString},
 	{Type: OperatorExponentiationAssignment, Value: AugmentedExponentString},
 }
 
 var ComparisonOperators = []OperatorTemplate{
-	{Type: OperatorEqual, Value: EqualityString},
-	{Type: OperatorNotEqual, Value: InequalityString},
-	{Type: OperatorLessThan, Value: LessThanString},
-	{Type: OperatorLessThanOrEqual, Value: LessThanOrEqualString},
-	{Type: OperatorGreaterThan, Value: GreaterThanString},
+	{Type: OperatorEqual,              Value: EqualityString},
+	{Type: OperatorNotEqual,           Value: InequalityString},
+	{Type: OperatorLessThan,           Value: LessThanString},
+	{Type: OperatorLessThanOrEqual,    Value: LessThanOrEqualString},
+	{Type: OperatorGreaterThan,        Value: GreaterThanString},
 	{Type: OperatorGreaterThanOrEqual, Value: GreaterThanOrEqualString},
 }
 
 var LogicalOperators = []OperatorTemplate{
 	{Type: OperatorAnd, Value: LogicalAndString},
-	{Type: OperatorOr, Value: LogicalOrString},
+	{Type: OperatorOr,  Value: LogicalOrString},
 	{Type: OperatorNot, Value: LogicalNotString},
 	{Type: OperatorXor, Value: LogicalXorString},
 }
 
-var AssignmentOperators = []OperatorTemplate{
-	{Type: OperatorAssignment, Value: string(AssignmentSymbol)},
-	{Type: OperatorAssignment, Value: string(DecimalSymbol)},
-	{Type: OperatorAssignment, Value: DeclarationString},
+var AccessOperators = []OperatorTemplate{
+	{Type: OperatorAssignment,  Value: string(AssignmentSymbol)},
+	{Type: OperatorIndexing,    Value: string(DecimalSymbol)},
+	{Type: OperatorDeclaration, Value: DeclarationString},
 }
 
 type ReservedVariableTemplate struct {
@@ -106,16 +106,16 @@ type ReservedVariableTemplate struct {
 }
 
 var ReservedVariables = []ReservedVariableTemplate{
-	{Name: TrueString, Type: TypeBool},
-	{Name: FalseString, Type: TypeBool},
-	{Name: NilString, Type: TypeNil},
+	{Name: TrueString,  Type: LiteralBool},
+	{Name: FalseString, Type: LiteralBool},
+	{Name: NilString,   Type: LiteralNil},
 }
 
 // Adjust this value if you add more operators
 var MaxOperatorLength = 4
 
 /*
-Operators can only consist of symbols that are not letters
+Operators ideally, should only consist of symbols that are not letters
 or digits so they can be easily distinguished from identifiers
 */
 var Operators = append(
@@ -125,5 +125,5 @@ var Operators = append(
 					ArithmeticOperators, AugmentedOperators...,
 				), ComparisonOperators...,
 			), LogicalOperators...,
-		), AssignmentOperators...,
+		), AccessOperators...,
 	)

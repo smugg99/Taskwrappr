@@ -12,7 +12,7 @@ const (
 	Binding of an identifier to an expression.
 	Left side has to have exactly one identifier,
 	right side has to have exactly one expression
-	e.g. var1, var2, var3 := 1, 2, 3
+	e.g. var1 := 1
 	*/
 	NodeBinding
 

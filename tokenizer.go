@@ -3,31 +3,38 @@ package taskwrappr
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"unicode"
 )
 
 type Tokenizer struct {
-	Source    string // Source code to tokenize
-	Index     uint   // Current index in the source code
-	Line      uint   // Current line number
-	Rune      rune   // Current rune being processed
-	InString  bool   // Whether the tokenizer is currently processing a string
-	InComment bool   // Whether the tokenizer is currently processing a comment
+	FilePath	   string // Path to the source file
+	Source         string // Source code to tokenize
+	Index          uint   // Current index in the source code
+	IndexSinceLine uint   // Current index since the last newline
+	Line           uint   // Current line number
+	Rune           rune   // Current rune being processed
+	InString       bool   // Whether the tokenizer is currently processing a string
+	InComment      bool   // Whether the tokenizer is currently processing a comment
 }
 
 func (t *Tokenizer) String() string {
 	return fmt.Sprintf("Tokenizer{Index: %d, Line: %d, Rune: %v, InString: %v, InComment: %v}", t.Index, t.Line, string(t.Rune), t.InString, t.InComment)
 }
 
-func NewTokenizer(source string) *Tokenizer {
+func NewTokenizer(filePath string) *Tokenizer {
+	source, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Println("error reading script file:", err)
+		return nil
+	}
+
 	tokenizer := &Tokenizer{
-		Source:   source,
-		Index:    0,
+		FilePath: filePath,
+		Source:   string(source),
 		Line:     1,
-		Rune:     0,
-		InString: false,
 	}
 
 	tokenizer.readRune()
@@ -43,9 +50,11 @@ func (t *Tokenizer) readRune() {
 	t.Rune = rune(t.Source[t.Index])
 	if t.Rune == NewLineSymbol {
 		t.Line++
+		t.IndexSinceLine = 0
 	}
 
 	t.Index++
+	t.IndexSinceLine++
 }
 
 func (t *Tokenizer) peekRune(x uint) rune {
@@ -76,38 +85,8 @@ func (t *Tokenizer) nextToken() (Token, error) {
 	}
 
 	// Handle single-character tokens
-	switch t.Rune {
-	case CodeBlockOpenSymbol:
-		token := BlockDelimiterToken{IsOpen: true, index: t.Index - 1, line: t.Line}
-		t.readRune()
+	if token := t.handleSingleCharacterToken(); token != nil {
 		return token, nil
-	case CodeBlockCloseSymbol:
-		token := BlockDelimiterToken{IsOpen: false, index: t.Index - 1, line: t.Line}
-		t.readRune()
-		return token, nil
-	case DelimiterSymbol:
-		token := IdentifierDelimiterToken{index: t.Index - 1, line: t.Line}
-		t.readRune()
-		return token, nil
-	case ParenOpenSymbol:
-		token := ExpressionDelimiterToken{IsOpen: true, index: t.Index - 1, line: t.Line}
-		t.readRune()
-		return token, nil
-	case ParenCloseSymbol:
-		token := ExpressionDelimiterToken{IsOpen: false, index: t.Index - 1, line: t.Line}
-		t.readRune()
-		return token, nil
-	case BracketOpenSymbol:
-		token := IndexingDelimiterToken{IsOpen: true, index: t.Index - 1, line: t.Line}
-		t.readRune()
-		return token, nil
-	case BracketCloseSymbol:
-		token := IndexingDelimiterToken{IsOpen: false, index: t.Index - 1, line: t.Line}
-		t.readRune()
-		return token, nil
-	case CommentSymbol:
-		t.skipComment()
-		return nil, nil
 	}
 
 	// Handle string literals
@@ -139,42 +118,83 @@ func (t *Tokenizer) nextToken() (Token, error) {
 	return nil, fmt.Errorf("unexpected token: %v %d", string(t.Rune), t.Rune)
 }
 
+func (t *Tokenizer) handleSingleCharacterToken() (Token) {
+	switch t.Rune {
+	case CodeBlockOpenSymbol:
+		token := BlockDelimiterToken{IsOpen: true, index: t.Index - 1, line: t.Line}
+		t.readRune()
+		return token
+	case CodeBlockCloseSymbol:
+		token := BlockDelimiterToken{IsOpen: false, index: t.Index - 1, line: t.Line}
+		t.readRune()
+		return token
+	case DelimiterSymbol:
+		token := IdentifierDelimiterToken{index: t.Index - 1, line: t.Line}
+		t.readRune()
+		return token
+	case ParenOpenSymbol:
+		token := ExpressionDelimiterToken{IsOpen: true, index: t.Index - 1, line: t.Line}
+		t.readRune()
+		return token
+	case ParenCloseSymbol:
+		token := ExpressionDelimiterToken{IsOpen: false, index: t.Index - 1, line: t.Line}
+		t.readRune()
+		return token
+	case BracketOpenSymbol:
+		token := IndexingDelimiterToken{IsOpen: true, index: t.Index - 1, line: t.Line}
+		t.readRune()
+		return token
+	case BracketCloseSymbol:
+		token := IndexingDelimiterToken{IsOpen: false, index: t.Index - 1, line: t.Line}
+		t.readRune()
+		return token
+	case CommentSymbol:
+		t.skipComment()
+		return nil
+	}
+
+	return nil
+}
+
 // Handles single and multi-character operators
 func (t *Tokenizer) handleOperator() (Token, error) {
 	startIndex := t.Index
 	startLine := t.Line
-	possibleOperator := ""
-	longestOperator := ""
 
-	for i := 0; i < MaxOperatorLength && !(unicode.IsSpace(t.Rune) || unicode.IsLetter(t.Rune) || unicode.IsDigit(t.Rune)) && t.Rune != 0; i++ {
-		possibleOperator += string(t.Rune)
-		if isOperator(possibleOperator) {
-			longestOperator = possibleOperator
+	var value strings.Builder
+	var longestOperator string
+
+	for i := 0; i < MaxOperatorLength; i++ {
+		if unicode.IsSpace(t.Rune) || unicode.IsLetter(t.Rune) || unicode.IsDigit(t.Rune) || t.Rune == 0 {
+			break
+		}
+
+		value.WriteRune(t.Rune)
+		currentValue := value.String()
+
+		if isOperator(currentValue) {
+			longestOperator = currentValue
 		}
 		t.readRune()
 	}
 
 	if longestOperator != "" {
-		operator := strings.TrimSpace(longestOperator)
-		opType, err := categorizeOperator(operator)
+		opType, err := categorizeOperator(longestOperator)
 		if err != nil {
 			return nil, err
 		}
-
-		return OperationToken{Type: opType, Value: operator, index: startIndex, line: startLine}, nil
+		return OperationToken{Type: opType, Value: longestOperator, index: startIndex, line: startLine}, nil
 	}
 
-	if len(possibleOperator) > 0 && isOperator(possibleOperator[:1]) {
-		operator := strings.TrimSpace(possibleOperator[:1])
-		opType, err := categorizeOperator(operator)
+	if firstRune := value.String()[:1]; isOperator(firstRune) {
+		opType, err := categorizeOperator(firstRune)
 		if err != nil {
 			return nil, err
 		}
-
-		return OperationToken{Type: opType, Value: operator, index: startIndex, line: startLine}, nil
+		return OperationToken{Type: opType, Value: firstRune, index: startIndex, line: startLine}, nil
 	}
 
-	return nil, fmt.Errorf("invalid operator: %v", possibleOperator)
+	return nil, fmt.Errorf("invalid operator: %v", value.String())
 }
 
 // Handle string literals, including escape sequences
@@ -186,7 +206,7 @@ func (t *Tokenizer) handleStringLiteral() (Token, error) {
 	for {
 		t.readRune()
 		// Handle escape sequences
-		if t.Rune == EscapeSymbol && t.peekRune(0) == QuoteSymbol {
+		if t.Rune == EscapeSymbol && t.peekRune(1) == QuoteSymbol {
 			t.readRune() // Consume the escape
 			value.WriteRune(QuoteSymbol)
 			continue
@@ -201,7 +221,7 @@ func (t *Tokenizer) handleStringLiteral() (Token, error) {
 	if t.Rune == QuoteSymbol {
 		t.readRune()
 	}
-	return LiteralToken{Value: value.String(), Type: TypeString, index: startIndex, line: startLine}, nil
+	return LiteralToken{Value: value.String(), Type: LiteralString, index: startIndex, line: startLine}, nil
 }
 
 // Handle numeric literals, including negative numbers and floats
@@ -237,7 +257,7 @@ func (t *Tokenizer) handleNumberLiteral() (Token, error) {
         return nil, fmt.Errorf("invalid float literal: %v", value.String())
     }
 
-    return LiteralToken{Value: floatValue, Type: TypeNumber, index: startIndex, line: startLine}, nil
+    return LiteralToken{Value: floatValue, Type: LiteralNumber, index: startIndex, line: startLine}, nil
 }
 
 // Handle identifiers, including reserved variable names
@@ -277,7 +297,7 @@ func (t *Tokenizer) Tokenize() ([]Token, error) {
 	for {
 		token, err := t.nextToken()
 		if err != nil {
-			return nil, fmt.Errorf("[%d:%d] %v", t.Line, t.Index, err)
+			return nil, fmt.Errorf("[%s:%d:%d] %v", t.FilePath, t.Line, t.IndexSinceLine, err)
 		}
 
 		if token == nil {
